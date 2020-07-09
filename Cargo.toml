@@ -1,0 +1,8 @@
+[package]
+name = "cmt2"
+version = "0.0.1"
+authors = ["ve5li <ve5li@tuta.io>"]
+
+[dependencies]
+sfml = { git = "https://github.com/JeremyLetang/rust-sfml" }
+dst6 = { git = "https://github.com/vE5li/dst6.git" }

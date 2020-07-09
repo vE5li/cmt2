@@ -1,0 +1,17 @@
+#bindings {
+    left            [ [ left ] [ alt 'h' ] ]
+    right           [ [ right ] [ alt 'j' ] ]
+    up              [ [ up ] [ alt 'k' ] ]
+    down            [ [ down ] [ alt 'l' ] ]
+    extend_left     [ [ shift left ] ]
+    extend_right    [ [ shift right ] ]
+    extend_up       [ [ shift up ] ]
+    extend_down     [ [ shift down ] ]
+    move_left       [ [ control left ] ]
+    move_right      [ [ control right ] ]
+    move_up         [ [ control up ] ]
+    move_down       [ [ control down ] ]
+    copy            [ [ control 'c' ] ]
+    paste           [ [ control 'v' ] ]
+    cut             [ [ control 'x' ] ]
+}

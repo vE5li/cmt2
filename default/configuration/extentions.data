@@ -1,0 +1,8 @@
+#extentions {
+    none            [ #default ]
+    seamonkey       [ "data" ]
+    cipher          [ "cip" ]
+    doofenshmirtz   [ "asm" ]
+    entleman        [ "uni" ]
+    "c++"           [ "cpp" "h" ]
+}

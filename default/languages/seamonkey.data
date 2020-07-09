@@ -1,0 +1,73 @@
+#comment_tokenizer {
+    #block_comment  [ "@@" "@@" ]
+    #line_comment   '@'
+}
+
+#number_tokenizer {
+    #format {
+        #none {
+            #none           decimal
+        }
+        "0x" {
+            #none           hexadecimal
+        }
+        "0b" {
+            #none           binary
+        }
+    }
+    #system {
+        binary          [ '0' '1'                                                         ]
+        decimal         [ '0' '1' '2' '3' '4' '5' '6' '7' '8' '9'                         ]
+        hexadecimal     [ '0' '1' '2' '3' '4' '5' '6' '7' '8' '9' 'A' 'B' 'C' 'D' 'E' 'F' ]
+    }
+    #float          '.'
+}
+
+#character_tokenizer {
+    #replace {
+        "\\0"           '\0'
+        "\\\\"          '\\'
+        "\\b"           '\b'
+        "\\\'"          '\''
+        "\\\""          '\"'
+        "\\n"           '\n'
+        "\\t"           '\t'
+        "\\r"           '\r'
+        "\\e"           '\e'
+    }
+    #delimiter      [ '\'' '\'' ]
+}
+
+#string_tokenizer {
+    #replace {
+        "\\0"           '\0'
+        "\\\\"          '\\'
+        "\\b"           '\b'
+        "\\\'"          '\''
+        "\\\""          '\"'
+        "\\n"           '\n'
+        "\\t"           '\t'
+        "\\r"           '\r'
+        "\\e"           '\e'
+    }
+    #delimiter      [ '\"' '\"' ]
+}
+
+#operator_tokenizer {
+    #translate {
+        '-'             negative
+        '{'             open_map
+        '}'             close_map
+        '['             open_list
+        ']'             close_list
+        '#'             keyword
+        '$'             boolean
+        ':'             index
+    }
+    #ignored        [ '\r' '\t' '\n' ' ' ]
+    #invalid        [ '\\' ',' ';' '.' '?' '>' '<' '^' '&' '|' '~' '%' '!' '*' '/' '+' '=' ]
+}
+
+#identifier_tokenizer {
+    #prefix          [ _ a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z ]
+}
