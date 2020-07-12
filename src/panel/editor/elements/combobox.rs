@@ -1,7 +1,9 @@
 use kami::*;
-use super::{ TextBox, fill_line };
+use super::TextBox;
 use context::{ Context, Action };
 use sfml::graphics::*;
+use sfml::system::Vector2f;
+use graphics::draw_spaced_text;
 
 macro_rules! handle_return_none {
     ($expression: expr) => ({
@@ -113,9 +115,10 @@ impl ComboBox {
                     false => self.textbox.set(valid_variants[index + 1].clone())
                 }
 
-                if context.selection_gap + self.displacement + 4 > context.height + self.scroll - index {
-                    self.scroll += 1;
-                }
+                // UNCOMMENT!!!!
+                //if context.selection_gap + self.displacement + 4.0 > context.height + self.scroll - index {
+                //    self.scroll += 1;
+                //}
             }
         }
     }
@@ -231,29 +234,44 @@ impl ComboBox {
         self.textbox.add_character(character);
     }
 
-    pub fn draw(&self, framebuffer: &mut RenderTexture, context: &Context, width: f32, offset: usize, focused: bool) {
-        self.textbox.draw(framebuffer, context, width, offset, focused && self.selection.is_textbox());
+    pub fn draw(&self, framebuffer: &mut RenderTexture, context: &Context, size: Vector2f, offset: Vector2f, focused: bool) {
+        self.textbox.draw(framebuffer, context, size.x, offset, focused && self.selection.is_textbox());
 
-        //if focused {
-        //    let mut top_offset = self.displacement + 2;
-        //    let valid_variants = self.valid_variants();
-        //    for index in self.scroll..valid_variants.len() {
+        if focused {
 
-        //        if top_offset >= context.height {
-        //            return;
-        //        }
+            let character_scaling = context.character_spacing * context.font_size as f32;
+            let dialogue_height = context.theme.dialogue.height * context.font_size as f32;
+            let mut text_box_base = RectangleShape::with_size(Vector2f::new(size.x, dialogue_height));
+            text_box_base.set_outline_thickness(0.0);
 
-        //        match self.selection.index_matches(index) {
-        //            true => terminal.set_color_pair(&context.theme.panel_color, &context.theme.input_focused_color, true),
-        //            false => terminal.set_color_pair(&context.theme.panel_color, &context.theme.input_color, true),
-        //        }
+            let mut text_box_text = Text::default();
+            text_box_text.set_font(&context.font);
+            text_box_text.set_character_size(context.font_size as u32);
+            text_box_text.set_outline_thickness(0.0);
+            text_box_text.set_style(context.theme.dialogue.style);
 
-        //        terminal.move_cursor(top_offset, offset + context.line_number_offset);
-        //        fill_line(width - context.line_number_offset - 1, ' ');
-        //        terminal.move_cursor(top_offset, offset + context.line_number_offset + self.textbox.prompt.len());
-        //        print!("{}", valid_variants[index]);
-        //        top_offset += 1;
-        //    }
-        //}
+            let mut top_offset = offset.y + (self.displacement + 1) as f32 * dialogue_height;
+            let valid_variants = self.valid_variants();
+            for index in 0..valid_variants.len() {
+
+                if top_offset > size.y {
+                    break;
+                }
+
+                if self.selection.index_matches(index) {
+                    text_box_base.set_fill_color(context.theme.dialogue.focused);
+                    text_box_text.set_fill_color(context.theme.dialogue.focused_text);
+                } else {
+                    text_box_base.set_fill_color(context.theme.dialogue.background);
+                    text_box_text.set_fill_color(context.theme.dialogue.text);
+                }
+
+                text_box_base.set_position(Vector2f::new(offset.x, top_offset));
+                framebuffer.draw(&text_box_base);
+
+                draw_spaced_text(framebuffer, &mut text_box_text, Vector2f::new(offset.x + 10.0, top_offset), &valid_variants[index], character_scaling);
+                top_offset += dialogue_height;
+            }
+        }
     }
 }

@@ -15,6 +15,7 @@ pub enum Action {
     LineMode,
     OpenFile,
     SetLanguage,
+    FindReplace,
     Down,
     Up,
     Left,
@@ -22,6 +23,7 @@ pub enum Action {
     Start,
     End,
     AddSelection,
+    FocusNext,
 
     Abort,
     Confirm,
@@ -33,6 +35,9 @@ pub enum Action {
     ZoomOut,
     ZoomInPanel,
     ZoomOutPanel,
+
+    NewEditor,
+    ClosePanel,
 
     ExtendLeft,
     ExtendRight,
@@ -64,13 +69,11 @@ impl Action {
             "line_mode" => return success!(Action::LineMode),
             "open_file" => return success!(Action::OpenFile),
             "set_language" => return success!(Action::SetLanguage),
-            "down" => return success!(Action::Down),
-            "up" => return success!(Action::Up),
-            "left" => return success!(Action::Left),
-            "right" => return success!(Action::Right),
+            "find_replace" => return success!(Action::FindReplace),
             "start" => return success!(Action::Start),
             "end" => return success!(Action::End),
             "add_selection" => return success!(Action::AddSelection),
+            "focus_next" => return success!(Action::FocusNext),
 
             "abort" => return success!(Action::Abort),
             "confirm" => return success!(Action::Confirm),
@@ -82,6 +85,9 @@ impl Action {
             "zoom_out" => return success!(Action::ZoomOut),
             "zoom_in_panel" => return success!(Action::ZoomInPanel),
             "zoom_out_panel" => return success!(Action::ZoomOutPanel),
+
+            "new_editor" => return success!(Action::NewEditor),
+            "close_panel" => return success!(Action::ClosePanel),
 
             "left" => return success!(Action::Left),
             "right" => return success!(Action::Right),

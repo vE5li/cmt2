@@ -1,3 +1,7 @@
+mod mode;
+
+pub use self::mode::SelectionMode;
+
 #[derive(Clone, Debug)]
 pub struct Selection {
     pub index: usize,

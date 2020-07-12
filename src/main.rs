@@ -1,6 +1,5 @@
 #![feature(allocator_api)]
 
-#[macro_use]
 extern crate dst6 as kami;
 extern crate sfml;
 
@@ -15,6 +14,10 @@ use sfml::{ graphics::*, system::*, window::* };
 use self::context::{ Context, Action };
 use self::input::{ KeyEvent, Modifiers, is_modifier_key };
 use self::panel::Panel;
+
+const SMALLEST_FONT_SIZE: usize = 8;
+const BIGGEST_FONT_SIZE: usize = 34;
+const MAXIMUM_PANEL_COUNT: usize = 8;
 
 pub struct Instance<'i> {
     window: RenderWindow,
@@ -41,7 +44,7 @@ impl<'i> Instance<'i> {
         let size = Vector2f::new(window_size.x as f32 - panel_gap * 2.0, window_size.y as f32 - panel_gap * 2.0);
         let position = Vector2f::new(panel_gap, panel_gap);
 
-        panel1.update_graphics(&context, size);
+        panel1.update_graphics(&context, true, size);
         panel1.update_position(position);
         panels.push(panel1);
 
@@ -60,6 +63,7 @@ impl<'i> Instance<'i> {
     }
 
     pub fn execute(&mut self) {
+        let mut add_character = true;
         'execute: loop {
             self.draw();
 
@@ -94,46 +98,71 @@ impl<'i> Instance<'i> {
 
                                     Action::ToggleAppendLines => {
                                         self.context.toggle_append_lines();
+                                        self.update_panels();
+                                        add_character = false;
                                         continue 'execute;
                                     },
 
                                     Action::ToggleStatusBar => {
                                         self.context.toggle_status_bar();
+                                        self.update_panels();
+                                        add_character = false;
                                         continue 'execute;
                                     },
 
                                     Action::ToggleLineNumbers => {
                                         self.context.toggle_line_numbers();
+                                        self.update_panels();
+                                        add_character = false;
                                         continue 'execute;
                                     },
 
                                     Action::ToggleSelectionLines => {
                                         self.context.toggle_selection_lines();
+                                        self.update_panels();
+                                        add_character = false;
                                         continue 'execute;
                                     },
 
                                     Action::MoveFocusLeft => {
                                         self.move_focus_left();
+                                        add_character = false;
                                         continue 'execute;
                                     },
 
                                     Action::MoveFocusRight => {
                                         self.move_focus_right();
+                                        add_character = false;
                                         continue 'execute;
                                     },
 
                                     Action::ZoomIn => {
                                         self.zoom_in();
+                                        add_character = false;
                                         continue 'execute;
                                     },
 
                                     Action::ZoomOut => {
                                         self.zoom_out();
+                                        add_character = false;
+                                        continue 'execute;
+                                    },
+
+                                    Action::NewEditor => {
+                                        self.new_editor();
+                                        add_character = false;
+                                        continue 'execute;
+                                    },
+
+                                    Action::ClosePanel => {
+                                        self.close_panel();
+                                        add_character = false;
                                         continue 'execute;
                                     },
 
                                     unhandled => {
                                         if display!(self.panels[self.focused_panel].handle_action(&self.context, action), &None, &map!(), &map!()) {
+                                            add_character = false;
                                             continue 'execute;
                                         }
                                     }
@@ -143,6 +172,9 @@ impl<'i> Instance<'i> {
                     },
 
                     Event::TextEntered { unicode } => {
+                        if add_character {
+                            self.panels[self.focused_panel].add_character(&self.context, Character::from_char(unicode));
+                        }
                         //println!("TEXT : {}", unicode);
                     },
 
@@ -154,31 +186,79 @@ impl<'i> Instance<'i> {
                     _ => { },
                 }
             }
+
+            add_character = true;
+        }
+    }
+
+    fn update_panels(&mut self) {
+        for (index, panel) in self.panels.iter_mut().enumerate() {
+            panel.update(&self.context, self.focused_panel == index);
         }
     }
 
     fn update_graphics(&mut self) {
 
-        let panel_gap = self.context.theme.panel.gap * self.context.font_size as f32;
-        let panel_size = Vector2f::new(self.size.x as f32 - panel_gap * 2.0, self.size.y as f32 - panel_gap * 2.0);
-        let panel_position = Vector2f::new(panel_gap, panel_gap);
-
-        self.panels.first_mut().unwrap().update_graphics(&self.context, panel_size);
-        self.panels.first_mut().unwrap().update_position(panel_position);
-
         let view = View::from_rect(&FloatRect::new(0.0, 0.0, self.size.x as f32, self.size.y as f32));
         self.window.set_view(&view);
+
+        let panel_gap = self.context.theme.panel.gap * self.context.font_size as f32;
+        let mut remaining_width = self.size.x as f32 - panel_gap * 2.0;
+        let panel_count = self.panels.len();
+
+        for index in (0..self.panels.len()).rev() {
+            let mut panel_width = remaining_width / (index + 1) as f32;
+            remaining_width -= panel_width;
+            let mut panel_left = remaining_width + panel_gap;
+
+            if index != 0 {
+                panel_left += panel_gap / 2.0;
+                panel_width -= panel_gap / 2.0;
+            }
+
+            if index != panel_count - 1 {
+                panel_width -= panel_gap / 2.0;
+            }
+
+            let panel_size = Vector2f::new(panel_width, self.size.y as f32 - panel_gap * 2.0);
+            let panel_position = Vector2f::new(panel_left, panel_gap);
+            self.panels[index].update_graphics(&self.context, self.focused_panel == index, panel_size);
+            self.panels[index].update_position(panel_position);
+        }
+    }
+
+    fn new_editor(&mut self) {
+        if self.panels.len() < MAXIMUM_PANEL_COUNT {
+            let new_index = self.focused_panel + 1;
+            let mut panel = display!(Panel::new_editor(self.context.font_size), &None, &map!(), &map!());
+
+            match new_index == self.panels.len() {
+                true => self.panels.push(panel),
+                false => self.panels.insert(new_index, panel),
+            }
+
+            self.focused_panel = new_index;
+            self.update_graphics();
+        }
+    }
+
+    fn close_panel(&mut self) {
+        if self.panels.len() > 1 {
+            self.panels.remove(self.focused_panel);
+            self.focused_panel -= 1;
+            self.update_graphics();
+        }
     }
 
     fn zoom_in(&mut self) {
-        if self.context.font_size > 8 {
+        if self.context.font_size > SMALLEST_FONT_SIZE {
             self.context.font_size -= 1;
             self.update_graphics();
         }
     }
 
     fn zoom_out(&mut self) {
-        if self.context.font_size < 34 {
+        if self.context.font_size < BIGGEST_FONT_SIZE {
             self.context.font_size += 1;
             self.update_graphics();
         }
@@ -188,18 +268,20 @@ impl<'i> Instance<'i> {
         if self.focused_panel > 0 {
             self.focused_panel -= 1;
         }
+        self.update_panels();
     }
 
     fn move_focus_right(&mut self) {
         if self.focused_panel < self.panels.len() - 1 {
             self.focused_panel += 1;
         }
+        self.update_panels();
     }
 
     fn draw(&mut self) {
         self.window.clear(self.context.theme.panel.border);
-        for (index, panel) in self.panels.iter_mut().enumerate() {
-            panel.draw(&mut self.window, &self.context, self.focused_panel == index);
+        for panel in self.panels.iter_mut() {
+            panel.draw(&mut self.window);
         }
         self.window.display();
     }

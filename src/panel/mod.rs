@@ -1,9 +1,7 @@
-mod area;
 mod mode;
 mod editor;
 
 use kami::*;
-use self::area::Area;
 use self::mode::PanelMode;
 use self::editor::Editor;
 use context::{ Context, Action };
@@ -23,8 +21,7 @@ pub struct Panel<'p> {
 impl<'p> Panel<'p> {
 
     pub fn new_editor(font_size: usize) -> Status<Self> {
-        let mut editor = confirm!(Editor::new(font_size));
-        confirm!(editor.open_file(VectorString::from("/home/.poet/test/option.cip")));
+        let editor = confirm!(Editor::new(font_size));
         let mut surface = CustomShape::new(Box::new(RoundedRectangle::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)));
 
         success!(Self {
@@ -46,7 +43,14 @@ impl<'p> Panel<'p> {
         })
     }
 
-    pub fn update_graphics(&mut self, context: &Context, size: Vector2f) {
+    pub fn update(&mut self, context: &Context, focused: bool) {
+        match &self.mode {
+            PanelMode::Editor(editor) => editor.draw(&mut self.framebuffer, context, focused),
+            PanelMode::Terminal => { },
+        }
+    }
+
+    pub fn update_graphics(&mut self, context: &Context, focused: bool, size: Vector2f) {
 
         //let mut settings = ContextSettings::default();
         //let mut framebuffer = RenderTexture::with_settings(size.x.ceil() as u32, size.y.ceil() as u32, &settings).unwrap();
@@ -61,12 +65,13 @@ impl<'p> Panel<'p> {
         self.surface.set_texture(unsafe { &*texture_pointer }, false);
         self.surface.set_outline_thickness(0.0);
 
-        self.size = size;
-
         match &mut self.mode {
             PanelMode::Editor(editor) => editor.update_graphics(context, size),
             PanelMode::Terminal => { },
         }
+
+        self.update(context, focused);
+        self.size = size;
     }
 
     pub fn update_position(&mut self, position: Vector2f) {
@@ -74,26 +79,27 @@ impl<'p> Panel<'p> {
     }
 
     pub fn handle_action(&mut self, context: &Context, action: Action) -> Status<bool> {
-        match &mut self.mode {
-            PanelMode::Editor(editor) => return editor.handle_action(context, action),
-            PanelMode::Terminal => return success!(false),
+        let handled = match &mut self.mode {
+            PanelMode::Editor(editor) => confirm!(editor.handle_action(context, action)),
+            PanelMode::Terminal => false,
+        };
+
+        if handled {
+            self.update(context, true);
         }
+
+        return success!(handled);
     }
 
-    pub fn add_character(&mut self, character: Character) {
+    pub fn add_character(&mut self, context: &Context, character: Character) {
         match &mut self.mode {
             PanelMode::Editor(editor) => editor.add_character(character),
             PanelMode::Terminal => { },
-        }
+        };
+        self.update(context, true);
     }
 
-    pub fn draw(&mut self, window: &mut RenderWindow, context: &Context, focused: bool) {
-
-        match &self.mode {
-            PanelMode::Editor(editor) => editor.draw(&mut self.framebuffer, context, focused),
-            PanelMode::Terminal => { },
-        }
-
+    pub fn draw(&mut self, window: &mut RenderWindow) {
         window.draw(&self.surface);
     }
 }

@@ -19,6 +19,7 @@ pub struct PanelTheme {
     pub radius: f32,
     pub left_offset: f32,
     pub top_offset: f32,
+    pub right_offset: f32,
     pub style: TextStyle,
 }
 
@@ -39,10 +40,11 @@ impl PanelTheme {
             identifier: Color::rgb(160, 160, 160),
             type_identifier: Color::rgb(210, 100, 150),
             error: Color::rgb(160, 60, 60),
-            radius: 0.5,
-            gap: 1.0,
+            radius: 0.4,
+            gap: 0.5,
             left_offset: 0.4,
             top_offset: 0.4,
+            right_offset: 0.4,
             style: TextStyle::REGULAR,
         }
     }
@@ -81,8 +83,11 @@ pub struct DialogueTheme {
     pub background: Color,
     pub focused: Color,
     pub text: Color,
+    pub ghost: Color,
     pub focused_text: Color,
+    pub focused_ghost: Color,
     pub style: TextStyle,
+    pub ghost_style: TextStyle,
     pub height: f32,
 }
 
@@ -90,11 +95,14 @@ impl DialogueTheme {
 
     pub fn new() -> Self {
         Self {
-            background: Color::rgb(90, 90, 90),
-            focused: Color::rgb(135, 105, 130),
-            text: Color::rgb(160, 160, 160),
-            focused_text: Color::rgb(35, 35, 35),
+            background: Color::rgb(45, 45, 45),
+            focused: Color::rgb(70, 70, 70),
+            ghost: Color::rgb(70, 70, 70),
+            text: Color::rgb(90, 90, 90),
+            focused_text: Color::rgb(130, 130, 130),
+            focused_ghost: Color::rgb(100, 100, 100),
             style: TextStyle::REGULAR,
+            ghost_style: TextStyle::ITALIC,
             height: 1.5,
         }
     }

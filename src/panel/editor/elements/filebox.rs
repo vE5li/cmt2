@@ -1,7 +1,10 @@
 use kami::*;
-use super::{ ComboBox, ComboSelection, get_directory_entries };
-use context::{ Context, Action };
 use sfml::graphics::*;
+use sfml::system::Vector2f;
+use context::{ Context, Action };
+
+use super::{ ComboBox, ComboSelection };
+use super::super::get_directory_entries;
 
 pub struct FileBox {
     pub combobox: ComboBox,
@@ -65,6 +68,8 @@ impl FileBox {
 
         match action {
 
+            Action::Confirm => self.check_directories(),
+
             Action::Remove => self.check_directories(),
 
             Action::Clear => self.check_directories(),
@@ -84,7 +89,7 @@ impl FileBox {
         self.check_directories();
     }
 
-    pub fn draw(&self, framebuffer: &mut RenderTexture, context: &Context, width: f32, offset: usize, focused: bool) {
-        self.combobox.draw(framebuffer, context, width, offset, focused);
+    pub fn draw(&self, framebuffer: &mut RenderTexture, context: &Context, size: Vector2f, offset: Vector2f, focused: bool) {
+        self.combobox.draw(framebuffer, context, size, offset, focused);
     }
 }

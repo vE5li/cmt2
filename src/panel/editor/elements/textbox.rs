@@ -1,5 +1,5 @@
 use kami::*;
-use super::{ Selection, fill_line };
+use super::super::Selection;
 use context::{ Context, Action };
 use sfml::system::Vector2f;
 use sfml::graphics::*;
@@ -120,9 +120,11 @@ impl TextBox {
         }
     }
 
-    pub fn draw(&self, framebuffer: &mut RenderTexture, context: &Context, width: f32, offset: usize, focused: bool) {
+    pub fn draw(&self, framebuffer: &mut RenderTexture, context: &Context, width: f32, offset: Vector2f, focused: bool) {
 
+        let character_scaling = context.character_spacing * context.font_size as f32;
         let dialogue_height = context.theme.dialogue.height * context.font_size as f32;
+
         let mut text_box_base = RectangleShape::with_size(Vector2f::new(width, dialogue_height));
         text_box_base.set_outline_thickness(0.0);
 
@@ -130,50 +132,36 @@ impl TextBox {
         text_box_text.set_font(&context.font);
         text_box_text.set_character_size(context.font_size as u32);
         text_box_text.set_outline_thickness(0.0);
-        text_box_text.set_style(context.theme.dialogue.style);
 
         text_box_base.set_fill_color(context.theme.dialogue.background);
         text_box_text.set_fill_color(context.theme.dialogue.text);
 
-        let character_scaling = context.character_spacing * context.font_size as f32;
-        let center = (width - self.description.len() as f32 * character_scaling) / 2.0;
-        text_box_base.set_position(Vector2f::new(0.0, offset as f32 * dialogue_height));
-        framebuffer.draw(&text_box_base);
-
-        draw_spaced_text(framebuffer, &mut text_box_text, Vector2f::new(center, offset as f32 * dialogue_height), &self.description, character_scaling);
+        match self.content.len() > 1 {
+            true => text_box_text.set_style(context.theme.dialogue.style),
+            false => text_box_text.set_style(context.theme.dialogue.ghost_style),
+        }
 
         if focused {
             text_box_base.set_fill_color(context.theme.dialogue.focused);
-            text_box_text.set_fill_color(context.theme.dialogue.focused_text);
+            match self.content.len() > 1 {
+                true => text_box_text.set_fill_color(context.theme.dialogue.focused_text),
+                false => text_box_text.set_fill_color(context.theme.dialogue.focused_ghost),
+            }
         } else {
             text_box_base.set_fill_color(context.theme.dialogue.background);
-            text_box_text.set_fill_color(context.theme.dialogue.text);
+            match self.content.len() > 1 {
+                true => text_box_text.set_fill_color(context.theme.dialogue.text),
+                false => text_box_text.set_fill_color(context.theme.dialogue.ghost),
+            }
         }
 
-        text_box_base.set_position(Vector2f::new(0.0, (offset + 1) as f32 * dialogue_height));
+        let text_position = Vector2f::new(offset.x + 10.0 /* + content.bla.bla */, offset.y);
+        text_box_base.set_position(Vector2f::new(offset.x, offset.y));
         framebuffer.draw(&text_box_base);
 
-        draw_spaced_text(framebuffer, &mut text_box_text, Vector2f::new(0.0, (offset + 1) as f32 * dialogue_height), &self.content, character_scaling);
-
-        //text_box_text.set_position();
-        //text_box_text.set_string(&self.content.printable());
-        //framebuffer.draw(&text_box_text);
-
-        //let center = (width - context.line_number_offset - self.description.len()) / 2;
-        //terminal.move_cursor(self.displacement, offset + context.line_number_offset);
-        //fill_line(width - context.line_number_offset - 1, ' ');
-        //terminal.move_cursor(self.displacement, offset + center);
-        //print!("{}", self.description);
-
-        //terminal.move_cursor(self.displacement + 1, offset + context.line_number_offset);
-        //print!("{}{}", self.prompt, self.content);
-        //fill_line(width - context.line_number_offset - self.content.len() - self.prompt.len() - 1, ' ');
-
-        //if focused {
-        //    let offset = offset + context.line_number_offset + self.selection.index + self.prompt.len();
-        //    terminal.set_color_pair(&context.theme.panel_color, &context.theme.selection_color, true);
-        //    terminal.move_cursor(self.displacement + 1, offset);
-        //    print!("{}", self.content[self.selection.index].as_char());
-        //}
+        match self.content.len() > 1 {
+            true => draw_spaced_text(framebuffer, &mut text_box_text, text_position, &self.content, character_scaling),
+            false => draw_spaced_text(framebuffer, &mut text_box_text, text_position, &self.description, character_scaling),
+        }
     }
 }

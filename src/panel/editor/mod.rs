@@ -1,8 +1,7 @@
 mod selection;
-mod mode;
-mod textbox;
-mod combobox;
-mod filebox;
+mod elements;
+mod dialogues;
+mod token;
 
 use kami::*;
 use kami::tokenize::tokenize;
@@ -10,174 +9,26 @@ use kami::tokenize::tokenize;
 
 use sfml::graphics::*;
 use sfml::system::Vector2f;
-use self::selection::Selection;
-use self::mode::SelectionMode;
-use self::textbox::TextBox;
-use self::combobox::{ ComboBox, ComboSelection };
-use self::filebox::FileBox;
 use context::{ Context, Action };
 use graphics::{ RoundedRectangle, draw_spaced_text };
 
+use self::selection::{ Selection, SelectionMode };
+use self::elements::*;
+use self::dialogues::*;
+use self::token::EditorToken;
 
-
-
-
-
-
-
-
-
-#[derive(Clone, Debug)]
-pub struct EditorToken {
-    pub token_type: TokenType,
-    pub index: usize,
-    pub length: usize,
-}
-
-impl EditorToken {
-
-    pub fn new(token_type: TokenType, index: usize, length: usize) -> Self {
-        Self {
-            token_type: token_type,
-            length: length,
-            index: index,
-        }
-    }
-
-    pub fn display_name(&self) -> Option<&'static str> {
-        match self.token_type {
-            TokenType::Comment(..) => return Some("comment"),
-            TokenType::Operator(..) => return Some("operator"),
-            TokenType::Keyword(..) => return Some("keyword"),
-            TokenType::Identifier(..) => return Some("identifier"),
-            TokenType::TypeIdentifier(..) => return Some("type identifier"),
-            TokenType::Character(..) => return Some("character"),
-            TokenType::String(..) => return Some("string"),
-            TokenType::Integer(..) => return Some("integer"),
-            TokenType::Float(..) => return Some("float"),
-            TokenType::Invalid(..) => return None,
-            TokenType::Ignored => return None,
-        }
-    }
-
-    pub fn get_color(&self, context: &Context) -> Color {
-        match self.token_type {
-            TokenType::Comment(..) => return context.theme.panel.comment,
-            TokenType::Operator(..) => return context.theme.panel.operator,
-            TokenType::Keyword(..) => return context.theme.panel.keyword,
-            TokenType::Identifier(..) => return context.theme.panel.identifier,
-            TokenType::TypeIdentifier(..) => return context.theme.panel.type_identifier,
-            TokenType::Character(..) => return context.theme.panel.character,
-            TokenType::String(..) => return context.theme.panel.string,
-            TokenType::Integer(..) => return context.theme.panel.integer,
-            TokenType::Float(..) => return context.theme.panel.float,
-            TokenType::Invalid(..) => return context.theme.panel.error,
-            TokenType::Ignored => return context.theme.panel.text,
-        }
-    }
-}
-
-pub fn length_from_position(position: Vec<Position>) -> usize {
-    return position.iter().map(|position| position.length).sum();
-}
-
-
-
-pub struct OpenFileDialogue {
-    pub file_name_box: FileBox,
-}
-
-impl OpenFileDialogue {
-
-    pub fn new() -> Self {
-        Self {
-            file_name_box: FileBox::new("open file", " > ", 0, false),
-        }
-    }
-
-    pub fn handle_action(&mut self, context: &Context, action: Action) -> (bool, Option<bool>) {
-
-        if let Action::OpenFile = action {
-            return (true, Some(false));
-        }
-
-        return self.file_name_box.handle_action(context, action);
-    }
-
-    pub fn add_character(&mut self, character: Character) {
-        self.file_name_box.add_character(character);
-    }
-
-    pub fn draw(&self, framebuffer: &mut RenderTexture, context: &Context, width: f32) {
-        self.file_name_box.draw(framebuffer, context, width, 0, true);
-    }
-}
-
-pub struct SetLanguageDialogue {
-    pub language_box: ComboBox,
-}
-
-impl SetLanguageDialogue {
-
-    pub fn new(language: VectorString) -> Self {
-        Self {
-            language_box: ComboBox::new("select language", " > ", 0, false, false, vec![VectorString::from("cipher"), VectorString::from("c++"), VectorString::from("default"), VectorString::from("doofenshmirtz"), VectorString::from("entleman"), VectorString::from("none"), VectorString::from("rust"), VectorString::from("seamonkey")]),
-        }
-    }
-
-    pub fn handle_action(&mut self, context: &Context, action: Action) -> (bool, Option<bool>) {
-
-        if let Action::SetLanguage = action {
-            return (true, Some(false));
-        }
-
-        return self.language_box.handle_action(context, action);
-    }
-
-    pub fn add_character(&mut self, character: Character) {
-        self.language_box.add_character(character);
-    }
-
-    pub fn draw(&self, framebuffer: &mut RenderTexture, context: &Context, width: f32) {
-        self.language_box.draw(framebuffer, context, width, 0, true);
-    }
-}
-
-pub fn fill_line(length: usize, character: char) {
-    for _index in 0..length {
-        print!("{}", character);
-    }
-}
-
-#[derive(Clone)]
-pub enum DialogueMode {
-    None,
-    Error(VectorString),
-    OpenFile,
-    SetLanguage,
-}
-
-impl DialogueMode {
-
-    pub fn selections_shown(&self) -> bool {
-        match self {
-            DialogueMode::None => return true,
-            DialogueMode::Error(..) => return true,
-            _other => return false,
-        }
-    }
-}
-
-
-
-
-
+const SMALLEST_FONT_SIZE: usize = 5;
+const BIGGEST_FONT_SIZE: usize = 50;
 
 macro_rules! handle_return {
     ($expression: expr) => ({
         $expression;
         return success!(true);
     })
+}
+
+pub fn length_from_position(position: Vec<Position>) -> usize {
+    return position.iter().map(|position| position.length).sum();
 }
 
 pub struct Editor {
@@ -192,13 +43,11 @@ pub struct Editor {
     size: Vector2f,
     scroll: usize,
     font_size: usize,
-
+    dialogue_mode: DialogueMode,
     open_file_dialogue: OpenFileDialogue,
     set_language_dialogue: SetLanguageDialogue,
-    dialogue_mode: DialogueMode,
+    find_replace_dialogue: FindReplaceDialogue,
 }
-
-// TOKEN TYPE IN THE STATUS BAR
 
 impl Editor {
 
@@ -208,7 +57,7 @@ impl Editor {
             file_name: None,
             content: VectorString::from("\n"),
             compiler: confirm!(Self::load_language(&language)),
-            language: language.clone(),
+            language: language,
             tokens: vec![EditorToken::new(TokenType::Operator(VectorString::from("newline")), 0, 1)],
             selections: vec![Selection::new(0, 1, 0)],
             mode: SelectionMode::Character,
@@ -216,10 +65,10 @@ impl Editor {
             size: Vector2f::new(0.0, 0.0),
             scroll: 0,
             font_size: font_size,
-
-            open_file_dialogue: OpenFileDialogue::new(),
-            set_language_dialogue: SetLanguageDialogue::new(language),
             dialogue_mode: DialogueMode::None,
+            open_file_dialogue: OpenFileDialogue::new(),
+            set_language_dialogue: SetLanguageDialogue::new(),
+            find_replace_dialogue: FindReplaceDialogue::new(),
         })
     }
 
@@ -411,6 +260,82 @@ impl Editor {
         //self.check_selection_gap_down(context, self.selections.len() - 1);
     }
 
+    fn extend_selection_left(&mut self, context: &Context) {
+        match self.mode {
+
+            SelectionMode::Character => {
+            },
+
+            SelectionMode::Token => {
+            },
+
+            SelectionMode::Line => return,
+        }
+
+        //self.merge_overlapping_selections();
+        //self.check_selection_gap_up(context, self.selections.len() - 1);
+    }
+
+    fn extend_selection_right(&mut self, context: &Context) {
+        match self.mode {
+
+            SelectionMode::Character => {
+            },
+
+            SelectionMode::Token => {
+            },
+
+            SelectionMode::Line => return,
+        }
+
+        //self.merge_overlapping_selections();
+        //self.check_selection_gap_down(context, self.selections.len() - 1);
+    }
+
+    fn extend_selection_up(&mut self, context: &Context) {
+        match self.mode {
+
+            SelectionMode::Character => {
+            },
+
+            SelectionMode::Token => {
+            },
+
+            SelectionMode::Line => {
+            },
+        }
+
+        //self.merge_overlapping_selections();
+        //self.check_selection_gap_up(context, self.selections.len() - 1);
+    }
+
+    fn extend_selection_down(&mut self, context: &Context) {
+        match self.mode {
+
+            SelectionMode::Character => {
+            },
+
+            SelectionMode::Token => {
+            },
+
+            SelectionMode::Line => {
+                for index in self.selection_start()..self.selections.len() {
+                    if self.selections[index].reversed {
+
+                    } else {
+                        // make sure index is in bounds
+                        let new_index = self.selections[index].index + self.selections[index].length;
+                        let line_length = self.line_length_from_index(new_index);
+                        self.selections[index].length += line_length;
+                    }
+                }
+            },
+        }
+
+        //self.merge_overlapping_selections();
+        //self.check_selection_gap_down(context, self.selections.len() - 1);
+    }
+
     fn move_to_end(&mut self) {
         match self.mode {
 
@@ -527,19 +452,14 @@ impl Editor {
     fn offset_from_index(&self, index: usize) -> usize {
         let mut left_offset = 0;
 
-        for current_index in 0..self.content.len() {
-            if current_index == index {
-                return left_offset;
-            }
-
-            if self.content[current_index].is_newline() {
-                left_offset = 0;
-            } else {
-                left_offset += 1;
+        for current_index in (0..index).rev() {
+            match self.content[current_index].is_newline() {
+                true => return left_offset,
+                false => left_offset += 1,
             }
         }
 
-        panic!("index {} was out of bounds", index);
+        return left_offset;
     }
 
     fn line_length_from_index(&self, index: usize) -> usize {
@@ -613,7 +533,7 @@ impl Editor {
     }
 
     fn zoom_in(&mut self) {
-        if self.font_size > 6 {
+        if self.font_size > SMALLEST_FONT_SIZE {
             self.font_size -= 1;
             //self.check_selection_gap_up(context, self.selections.len() - 1);
             //self.check_selection_gap_down(context, self.selections.len() - 1);
@@ -621,7 +541,7 @@ impl Editor {
     }
 
     fn zoom_out(&mut self) {
-        if self.font_size < 50 {
+        if self.font_size < BIGGEST_FONT_SIZE {
             self.font_size += 1;
         }
     }
@@ -680,6 +600,52 @@ impl Editor {
                 }
                 return success!(handled);
             },
+
+            DialogueMode::FindReplace(selections) => {
+
+                let (handled, status) = self.find_replace_dialogue.handle_action(action);
+
+                if let Some(completed) = status {
+
+                    if completed && self.selections.len() != 0 {
+
+                        let find = self.find_replace_dialogue.find_box.get();
+                        let replace = self.find_replace_dialogue.replace_box.get();
+                        self.content = self.content.replace(&find, &replace);
+
+                        if find.len() > replace.len() {
+
+                            let difference = find.len() - replace.len();
+                            for index in 0..self.selections.len() {
+                                self.selections[index].length -= difference;
+                                self.selections[index].index -= difference * index;
+                            }
+                        } else if find.len() < replace.len() {
+
+                            let difference = replace.len() - find.len();
+                            for index in 0..self.selections.len() {
+                                self.selections[index].length += difference;
+                                self.selections[index].index += difference * index;
+                            }
+                        }
+
+                        self.character_mode();
+                        self.parse();
+                    } else {
+
+                        self.selections = selections.clone();
+                    }
+
+                    self.dialogue_mode = DialogueMode::None;
+                    return success!(handled);
+                }
+
+                if handled {
+                    self.update_find_replace();
+                }
+
+                return success!(handled);
+            },
         }
 
         match action {
@@ -690,9 +656,11 @@ impl Editor {
 
             Action::LineMode => handle_return!(self.line_mode()),
 
-            Action::OpenFile => handle_return!(self.dialogue_mode = DialogueMode::OpenFile),
+            Action::OpenFile => handle_return!(self.open_open_file_dialogue()),
 
-            Action::SetLanguage => handle_return!(self.dialogue_mode = DialogueMode::SetLanguage),
+            Action::SetLanguage => handle_return!(self.open_set_language_dialogue()),
+
+            Action::FindReplace => handle_return!(self.open_find_replace_dialogue()),
 
             Action::Down => handle_return!(self.move_down(context)),
 
@@ -701,6 +669,14 @@ impl Editor {
             Action::Left => handle_return!(self.move_left(context)),
 
             Action::Right => handle_return!(self.move_right(context)),
+
+            Action::ExtendDown => handle_return!(self.extend_selection_down(context)),
+
+            Action::ExtendUp => handle_return!(self.extend_selection_up(context)),
+
+            Action::ExtendLeft => handle_return!(self.extend_selection_left(context)),
+
+            Action::ExtendRight => handle_return!(self.extend_selection_right(context)),
 
             Action::Start => handle_return!(self.move_to_start()),
 
@@ -711,6 +687,16 @@ impl Editor {
             Action::ZoomInPanel => handle_return!(self.zoom_in()),
 
             Action::ZoomOutPanel => handle_return!(self.zoom_out()),
+
+            Action::Abort => handle_return!(self.drop_selections()),
+
+            Action::Confirm => {
+                if self.adding_selection {
+                    self.adding_selection = false;
+                    return success!(true);
+                }
+                return success!(false);
+            },
 
             _other => return success!(false),
         }
@@ -724,25 +710,85 @@ impl Editor {
             //26 => self.undo(),
             //20 => self.remove_selections(),
             //126 => self.remove_selections(),
-            //10 => self.add_newline(),
             //65 => self.move_selection_up(context),
             //66 => self.move_selection_down(context),
             //67 => self.move_selection_right(context),
             //68 => self.move_selection_left(context),
             //330 => self.remove(),
-            //337 => self.extend_selection_up(context),
-            //336 => self.extend_selection_down(context),
-            //402 => self.extend_selection_right(context),
-            //393 => self.extend_selection_left(context),
         //}
     }
 
+    fn update_find_replace(&mut self) {
+
+        let new_string = self.find_replace_dialogue.find_box.get();
+
+        match new_string.is_empty() {
+            true => self.clear_selections(),
+            false => self.set_selections_from_string(&new_string),
+        }
+    }
+
+    fn clear_selections(&mut self) {
+        self.selections.clear();
+        self.adding_selection = false;
+    }
+
+    fn drop_selections(&mut self) {
+        for _index in 0..self.selections.len() - 1 {
+            self.selections.remove(0);
+        }
+
+        // reset that selection
+        self.adding_selection = false;
+    }
+
+    fn set_selections_from_string(&mut self, string: &VectorString) {
+
+        self.clear_selections();
+
+        let positions = self.content.position(string);
+        let length = string.len();
+
+        for index in positions {
+
+            let offset = self.offset_from_index(index);
+            let selection = Selection::new(index, length, offset);
+
+            self.selections.push(selection);
+        }
+    }
+
+    fn open_open_file_dialogue(&mut self) {
+
+        self.dialogue_mode = DialogueMode::OpenFile;
+    }
+
+    fn open_set_language_dialogue(&mut self) {
+
+        self.dialogue_mode = DialogueMode::SetLanguage;
+    }
+
+    fn open_find_replace_dialogue(&mut self) {
+
+        self.find_replace_dialogue.reset();
+        self.dialogue_mode = DialogueMode::FindReplace(self.selections.clone());
+
+        self.update_find_replace();
+    }
+
     pub fn add_character(&mut self, character: Character) {
+
         match self.dialogue_mode.clone() {
 
             DialogueMode::OpenFile => self.open_file_dialogue.add_character(character),
 
             DialogueMode::SetLanguage => self.set_language_dialogue.add_character(character),
+
+            DialogueMode::FindReplace(..) => {
+
+                self.find_replace_dialogue.add_character(character);
+                self.update_find_replace();
+            },
 
             _other => return,
         }
@@ -794,6 +840,10 @@ impl Editor {
         line_number_text.set_fill_color(context.theme.line_number.text);
         line_number_text.set_string(&format!("{}", line_number));
         line_number_text.set_style(context.theme.line_number.style);
+
+        if context.highlighting {
+            character_text.set_fill_color(self.tokens[token_index].get_color(context));
+        }
 
         for index in index..self.content.len() {
             if top_offset >= self.size.y {
@@ -850,7 +900,7 @@ impl Editor {
         selection_line.set_outline_thickness(0.0);
         selection_line.set_fill_color(context.theme.selection.line);
 
-        for index in self.selection_start()..self.selections.len() {
+        for index in 0..self.selections.len() {
             let mut top_offset = self.line_from_index(self.selections[index].index) as f32 * line_scaling + context.theme.panel.top_offset * self.font_size as f32;
             let mut draw_line = true;
 
@@ -861,7 +911,7 @@ impl Editor {
                     draw_line = false;
                 }
 
-                if self.content[self.selections[index].index].is_newline() {
+                if self.content[self.selections[index].index + offset].is_newline() {
                     top_offset += line_scaling;
                     draw_line = true;
                 }
@@ -871,8 +921,8 @@ impl Editor {
 
     fn draw_selections(&self, framebuffer: &mut RenderTexture, context: &Context) {
 
-        let character_scaling = context.character_spacing * self.font_size as f32;
         let line_scaling = context.line_spacing * self.font_size as f32;
+        let character_scaling = context.character_spacing * self.font_size as f32;
         let selection_radius = context.theme.selection.radius * self.font_size as f32;
         let line_number_offset = match context.line_numbers {
             true => context.theme.line_number.width as f32 * character_scaling + context.theme.line_number.offset * self.font_size as f32,
@@ -932,7 +982,7 @@ impl Editor {
                 framebuffer.draw(base);
                 framebuffer.draw(&selection_text);
 
-                if self.content[self.selections[index].index].is_newline() {
+                if self.content[self.selections[index].index +  offset].is_newline() {
                     left_offset = line_number_offset + context.theme.panel.left_offset * self.font_size as f32;
                     top_offset += line_scaling;
                 } else {
@@ -993,25 +1043,41 @@ impl Editor {
 
         framebuffer.clear(context.theme.panel.background);
 
-        if context.selection_lines && self.dialogue_mode.selections_shown() {
+        if context.selection_lines {
             self.draw_selection_lines(framebuffer, context);
         }
 
         self.draw_text(framebuffer, context);
-
-        if self.dialogue_mode.selections_shown() {
-            self.draw_selections(framebuffer, context);
-        }
-
-        match &self.dialogue_mode {
-            DialogueMode::None => { },
-            DialogueMode::Error(message) => self.draw_error_message(framebuffer, context, message),
-            DialogueMode::OpenFile => self.open_file_dialogue.draw(framebuffer, context, self.size.x),
-            DialogueMode::SetLanguage => self.set_language_dialogue.draw(framebuffer, context, self.size.x),
-        }
+        self.draw_selections(framebuffer, context);
 
         if focused {
             self.draw_status_bar(framebuffer, context);
+        }
+
+        let character_scaling = context.character_spacing * self.font_size as f32;
+        let line_number_offset = match context.line_numbers {
+            true => context.theme.line_number.width as f32 * character_scaling + context.theme.line_number.offset * self.font_size as f32,
+            false => 0.0,
+        };
+
+        let left_offset = line_number_offset + context.theme.panel.left_offset * self.font_size as f32;
+        let right_offset = context.theme.panel.right_offset * self.font_size as f32;
+        let top_offset = context.theme.panel.top_offset * self.font_size as f32;
+
+        let dialogue_size = Vector2f::new(self.size.x - left_offset - right_offset, self.size.y - top_offset);
+        let offset = Vector2f::new(left_offset, top_offset);
+
+        match &self.dialogue_mode {
+
+            DialogueMode::None => { },
+
+            DialogueMode::Error(message) => self.draw_error_message(framebuffer, context, message),
+
+            DialogueMode::OpenFile => self.open_file_dialogue.draw(framebuffer, context, dialogue_size, offset),
+
+            DialogueMode::SetLanguage => self.set_language_dialogue.draw(framebuffer, context, dialogue_size, offset),
+
+            DialogueMode::FindReplace(..) => self.find_replace_dialogue.draw(framebuffer, context, dialogue_size, offset),
         }
 
         framebuffer.display();
