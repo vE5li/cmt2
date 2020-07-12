@@ -40,7 +40,7 @@ impl PanelTheme {
             identifier: Color::rgb(160, 160, 160),
             type_identifier: Color::rgb(210, 100, 150),
             error: Color::rgb(160, 60, 60),
-            radius: 0.4,
+            radius: 0.2,
             gap: 0.5,
             left_offset: 0.4,
             top_offset: 0.4,
