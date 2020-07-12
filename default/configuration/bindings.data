@@ -1,8 +1,39 @@
 #bindings {
-    left            [ [ left ] [ alt 'h' ] ]
-    right           [ [ right ] [ alt 'j' ] ]
-    up              [ [ up ] [ alt 'k' ] ]
-    down            [ [ down ] [ alt 'l' ] ]
+
+    quit            [ [ control 'q' ] ]
+    append_lines    [ [ alt 'a' ] ]
+    status_bar      [ [ alt 's' ] ]
+    line_numbers    [ [ alt 'n' ] ]
+    selection_lines [ [ alt 'l' ] ]
+    focus_left      [ [ control shift 'h' ] ]
+    focus_right     [ [ control shift 'l' ] ]
+
+    character_mode  [ [ control 'd' ] ]
+    token_mode      [ [ control 'f' ] ]
+    line_mode       [ [ control 'e' ] ]
+    open_file       [ [ control 'o' ] ]
+    set_language    [ [ control 'l' ] ]
+    find_replace    [ [ control 'r' ] ]
+    add_selection   [ [ control enter ] ]
+    focus_next      [ [ tab ] ]
+
+    abort           [ [ escape ] ]
+    confirm         [ [ enter ] ]
+    remove          [ [ backspace ] ]
+    clear           [ [ control backspace ] ]
+
+    zoom_in         [ [ control shift period ] ]
+    zoom_out        [ [ control period ] ]
+    zoom_in_panel   [ [ control shift dash ] ]
+    zoom_out_panel  [ [ control dash ] ]
+
+    new_editor      [ [ control 'p' ] ]
+    close_panel     [ [ control 'w' ] ]
+
+    left            [ [ left ] ]
+    right           [ [ right ] ]
+    up              [ [ up ] ]
+    down            [ [ down ] ]
     extend_left     [ [ shift left ] ]
     extend_right    [ [ shift right ] ]
     extend_up       [ [ shift up ] ]
