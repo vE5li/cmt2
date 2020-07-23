@@ -55,9 +55,9 @@ pub struct ComboBox {
 
 impl ComboBox {
 
-    pub fn new(description: &'static str, prompt: &'static str, displacement: usize, allow_unknown: bool, path_mode: bool, variants: Vec<VectorString>) -> Self {
+    pub fn new(description: &'static str, displacement: usize, allow_unknown: bool, path_mode: bool, variants: Vec<VectorString>) -> Self {
         Self {
-            textbox: TextBox::new(description, prompt, displacement),
+            textbox: TextBox::new(description, displacement),
             allow_unknown: allow_unknown,
             variants: variants,
             selection: ComboSelection::TextBox,

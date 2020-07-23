@@ -12,16 +12,16 @@ use sfml::window::Key;
 macro_rules! unpack_component {
     ($color:expr, $index:expr, $component:expr) => ({
         let component = confirm!($color.index(&integer!($index)));
-        let component = expect!(component, Message, string!(str, "missing {} component", $component));
-        let component = unpack_integer!(component, Message, string!(str, "invalid type for {} component", $component));
-        ensure!(component >= 0 && component <= 255, Message, string!(str, "invalid range for {} component", $component));
+        let component = expect!(component, Message, string!("missing {} component", $component));
+        let component = unpack_integer!(component, Message, string!("invalid type for {} component", $component));
+        ensure!(component >= 0 && component <= 255, Message, string!("invalid range for {} component", $component));
         component as u8
     })
 }
 
 macro_rules! fetch_color {
     ($colors:expr, $name:expr, $theme:expr, $field:ident) => ({
-        if let Some(color) = confirm!($colors.index(&identifier!(str, $name))) {
+        if let Some(color) = confirm!($colors.index(&identifier!($name))) {
             let red = unpack_component!(color, 1, "red");
             let green = unpack_component!(color, 2, "green");
             let blue = unpack_component!(color, 3, "blue");
@@ -61,7 +61,7 @@ impl Context {
             configuration = confirm!(configuration.merge(&file_map));
         }
 
-        //if let Some(colors) = confirm!(configuration.index(&keyword!(str, "colors"))) {
+        //if let Some(colors) = confirm!(configuration.index(&keyword!("colors"))) {
         //    fetch_color!(colors, "border", theme, border_color);
         //    fetch_color!(colors, "panel", theme, panel_color);
         //    fetch_color!(colors, "text", theme, text_color);
@@ -85,7 +85,7 @@ impl Context {
         //    // fetch panel gap
         //}
 
-        let bindings_map = confirm!(configuration.index(&keyword!(str, "bindings"))).unwrap();
+        let bindings_map = confirm!(configuration.index(&keyword!("bindings"))).unwrap();
         let bindings_map = unpack_map!(&bindings_map);
 
         for (key, value) in bindings_map.iter() {
@@ -113,7 +113,7 @@ impl Context {
                                 _other => panic!(),
                             }
                         } else {
-                            return error!(Message, string!(str, "only modifiers can be excluded in bindings"));
+                            return error!(Message, string!("only modifiers can be excluded in bindings"));
                         }
 
                     } else {
@@ -131,7 +131,7 @@ impl Context {
                     }
                 }
 
-                let trigger = expect!(trigger, Message, string!(str, "keybinding must have a trigger"));
+                let trigger = expect!(trigger, Message, string!("keybinding must have a trigger"));
                 let new_binding = Binding::new(trigger, included, excluded);
                 match bindings.iter().position(|(binding, _): &(Binding, Action)| binding.length() <= new_binding.length()) {
                     Some(index) => bindings.insert(index, (new_binding, action)),

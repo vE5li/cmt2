@@ -14,7 +14,7 @@ pub struct FileBox {
 
 impl FileBox {
 
-    pub fn new(description: &'static str, prompt: &'static str, displacement: usize, allow_unknown: bool) -> Self {
+    pub fn new(description: &'static str, displacement: usize, allow_unknown: bool) -> Self {
 
         let entries = match get_directory_entries(&VectorString::from("/home/cmt2/")) {
             Status::Success(entries) => entries,
@@ -22,7 +22,7 @@ impl FileBox {
         };
 
         Self {
-            combobox: ComboBox::new(description, prompt, displacement, allow_unknown, true, entries),
+            combobox: ComboBox::new(description, displacement, allow_unknown, true, entries),
             displacement: displacement,
             directories: 0,
         }

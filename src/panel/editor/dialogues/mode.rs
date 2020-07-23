@@ -8,4 +8,5 @@ pub enum DialogueMode {
     OpenFile,
     SetLanguage,
     FindReplace(Vec<Selection>),
+    Action,
 }

@@ -33,7 +33,7 @@ pub fn length_from_position(position: Vec<Position>) -> usize {
 
 pub struct Editor {
     file_name: Option<VectorString>,
-    content: VectorString,
+    text_buffer: VectorString,
     compiler: Data,
     language: VectorString,
     tokens: Vec<EditorToken>,
@@ -47,6 +47,7 @@ pub struct Editor {
     open_file_dialogue: OpenFileDialogue,
     set_language_dialogue: SetLanguageDialogue,
     find_replace_dialogue: FindReplaceDialogue,
+    action_dialogue: ActionDialogue,
 }
 
 impl Editor {
@@ -55,7 +56,7 @@ impl Editor {
         let language = VectorString::from("none");
         success!(Self {
             file_name: None,
-            content: VectorString::from("\n"),
+            text_buffer: VectorString::from("\n"),
             compiler: confirm!(Self::load_language(&language)),
             language: language,
             tokens: vec![EditorToken::new(TokenType::Operator(VectorString::from("newline")), 0, 1)],
@@ -69,6 +70,7 @@ impl Editor {
             open_file_dialogue: OpenFileDialogue::new(),
             set_language_dialogue: SetLanguageDialogue::new(),
             find_replace_dialogue: FindReplaceDialogue::new(),
+            action_dialogue: ActionDialogue::new(),
         })
     }
 
@@ -84,7 +86,7 @@ impl Editor {
     pub fn open_file(&mut self, file_name: VectorString) -> Status<()> {
 
         // make sure there is no unsaved changes
-        self.content = confirm!(read_file(&file_name));
+        self.text_buffer = confirm!(read_file(&file_name));
         self.file_name = Some(file_name.clone()); // REMOVE CLONE
         self.reset();
 
@@ -123,7 +125,7 @@ impl Editor {
     }
 
     pub fn parse(&mut self) -> Status<()> {
-        let (mut token_stream, registry) = display!(tokenize(&self.compiler, self.content.clone(), self.file_name.clone(), &None, &map!(), &map!(), true), &None, &map!(), &map!());
+        let (mut token_stream, registry, notes) = display!(tokenize(&self.compiler, self.text_buffer.clone(), self.file_name.clone(), true));
         let mut tokens = Vec::new();
         let mut offset = 0;
 
@@ -173,7 +175,7 @@ impl Editor {
                     if previous_length > 1 {
                         let new_index = self.selections[index].index + previous_length - 1;
                         self.selections[index].set_index_offset(new_index, new_index);
-                    } else if self.selections[index].index < self.content.len() - 1 {
+                    } else if self.selections[index].index < self.text_buffer.len() - 1 {
                         self.selections[index].index += 1;
                         self.selections[index].offset = self.offset_from_index(self.selections[index].index);
                     }
@@ -195,12 +197,15 @@ impl Editor {
 
             SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
-                    self.selections[index].reset();
 
-                    match self.line_from_index(self.selections[index].index) {
-                        0 => self.selections[index].set_index_offset(0, 0),
-                        line => self.selections[index].index = self.index_from_line_offset(line - 1, self.selections[index].offset),
+                    if !self.is_selection_multiline(index) {
+                        match self.line_from_index(self.selections[index].index) {
+                            0 => self.selections[index].set_index_offset(0, 0),
+                            line => self.selections[index].index = self.index_from_line_offset(line - 1, self.selections[index].offset),
+                        }
                     }
+
+                    self.selections[index].reset();
                 }
             },
 
@@ -209,11 +214,19 @@ impl Editor {
 
             SelectionMode::Line => {
                 for index in self.selection_start()..self.selections.len() {
-                    let line = self.line_from_index(self.selections[index].index);
-                    if line != 0 {
-                        let new_index = self.index_from_line(line - 1);
-                        let length = self.line_length_from_index(new_index);
-                        self.selections[index].set_index_length(new_index, length);
+
+                    if self.is_selection_multiline(index) {
+                        let text_index = self.selections[index].index;
+                        let length = self.line_length_from_index(text_index);
+                        self.selections[index].length = length;
+                    } else {
+                        let line = self.line_from_index(self.selections[index].index);
+
+                        if line != 0 {
+                            let new_index = self.index_from_line(line - 1);
+                            let length = self.line_length_from_index(new_index);
+                            self.selections[index].set_index_length(new_index, length);
+                        }
                     }
                 }
             },
@@ -228,16 +241,24 @@ impl Editor {
 
             SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
-                    self.selections[index].reset();
 
-                    let line = self.line_from_index(self.selections[index].index);
-                    if line == self.line_count() {
-                        let new_index = self.content.len() - 1;
-                        let offset = self.offset_from_index(new_index);
-                        self.selections[index].set_index_offset(new_index, offset);
+                    if self.is_selection_multiline(index) {
+                        let selection_end = self.get_selection_end(index);
+                        let offset = self.offset_from_index(selection_end);
+                        self.selections[index].set_index_offset(selection_end, offset);
                     } else {
-                        self.selections[index].index = self.index_from_line_offset(line + 1, self.selections[index].offset)
+                        let line = self.line_from_index(self.selections[index].index);
+
+                        if line == self.line_count() {
+                            let new_index = self.text_buffer.len() - 1;
+                            let offset = self.offset_from_index(new_index);
+                            self.selections[index].set_index_offset(new_index, offset);
+                        } else {
+                            self.selections[index].index = self.index_from_line_offset(line + 1, self.selections[index].offset)
+                        }
                     }
+
+                    self.selections[index].reset();
                 }
             },
 
@@ -246,11 +267,19 @@ impl Editor {
 
             SelectionMode::Line => {
                 for index in self.selection_start()..self.selections.len() {
-                    let line = self.line_from_index(self.selections[index].index);
-                    if line != self.line_count() {
-                        let new_index = self.index_from_line(line + 1);
-                        let length = self.line_length_from_index(new_index);
-                        self.selections[index].set_index_length(new_index, length);
+
+                    if self.is_selection_multiline(index) {
+                        let last_line_index = self.get_last_selected_line(index);
+                        let length = self.line_length_from_index(last_line_index);
+                        self.selections[index].set_index_length(last_line_index, length);
+                    } else {
+                        let line = self.line_from_index(self.selections[index].index);
+
+                        if line != self.line_count() {
+                            let new_index = self.index_from_line(line + 1);
+                            let length = self.line_length_from_index(new_index);
+                            self.selections[index].set_index_length(new_index, length);
+                        }
                     }
                 }
             },
@@ -341,11 +370,16 @@ impl Editor {
 
             SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
-                    self.selections[index].reset();
-                    let remaining = self.line_length_from_index(self.selections[index].index);
-                    let new_index = self.selections[index].index + remaining - 1;
-                    let new_offset = self.offset_from_index(new_index);
-                    self.selections[index].set_index_offset(new_index, new_offset);
+
+                    if self.selections[index].reversed {
+
+                    } else {
+                        let mut new_index = self.get_last_selected_line(index);
+                        new_index += self.line_length_from_index(new_index) - 1;
+                        let new_offset = self.offset_from_index(new_index);
+                        self.selections[index].set_index_offset(new_index, new_offset);
+                        self.selections[index].reset();
+                    }
                 }
             },
 
@@ -382,6 +416,12 @@ impl Editor {
         //self.merge_overlapping_selections();
     }
 
+    fn get_selection_end(&self, index: usize) -> usize {
+        let text_index = self.selections[index].index;
+        let length = self.selections[index].length;
+        return text_index + length - 1;
+    }
+
     fn selection_start(&self) -> usize {
         match self.adding_selection {
             true => return self.selections.len() - 1,
@@ -390,18 +430,18 @@ impl Editor {
     }
 
     fn line_count(&self) -> usize {
-        return self.line_from_index(self.content.len() - 1);
+        return self.line_from_index(self.text_buffer.len() - 1);
     }
 
     fn index_from_line(&self, line: usize) -> usize {
         let mut line_count = 0;
 
-        for index in 0..self.content.len() {
+        for index in 0..self.text_buffer.len() {
             if line_count == line {
                 return index;
             }
 
-            if self.content[index].is_newline() {
+            if self.text_buffer[index].is_newline() {
                 line_count += 1;
             }
         }
@@ -413,12 +453,12 @@ impl Editor {
         let mut line_count = 0;
         let mut character_count = 0;
 
-        for index in 0..self.content.len() {
+        for index in 0..self.text_buffer.len() {
             if line_count == line && character_count == offset {
                 return index;
             }
 
-            if self.content[index].is_newline() {
+            if self.text_buffer[index].is_newline() {
                 if line_count == line {
                     return index;
                 }
@@ -436,12 +476,12 @@ impl Editor {
     fn line_from_index(&self, index: usize) -> usize {
         let mut line_count = 0;
 
-        for current_index in 0..self.content.len() {
+        for current_index in 0..self.text_buffer.len() {
             if current_index == index {
                 return line_count;
             }
 
-            if self.content[current_index].is_newline() {
+            if self.text_buffer[current_index].is_newline() {
                 line_count += 1;
             }
         }
@@ -453,7 +493,7 @@ impl Editor {
         let mut left_offset = 0;
 
         for current_index in (0..index).rev() {
-            match self.content[current_index].is_newline() {
+            match self.text_buffer[current_index].is_newline() {
                 true => return left_offset,
                 false => left_offset += 1,
             }
@@ -465,8 +505,8 @@ impl Editor {
     fn line_length_from_index(&self, index: usize) -> usize {
         let mut length = 1;
 
-        for current_index in index..self.content.len() {
-            if self.content[current_index].is_newline() {
+        for current_index in index..self.text_buffer.len() {
+            if self.text_buffer[current_index].is_newline() {
                 return length;
             }
             length += 1;
@@ -491,6 +531,35 @@ impl Editor {
 
     fn is_single_word_selected(&self) -> bool {
         return self.selections.len() == 1 || self.adding_selection && !self.mode.is_line();
+    }
+
+    fn is_selection_multiline(&self, index: usize) -> bool {
+        let mut current_index = self.selections[index].index;
+        let length = self.selections[index].length;
+
+        for offset in 0..length {
+            if self.text_buffer[current_index].is_newline() && offset != length - 1 {
+                return true;
+            }
+            current_index += 1;
+        }
+
+        return false;
+    }
+
+    fn get_last_selected_line(&self, index: usize) -> usize {
+        let mut current_index = self.selections[index].index;
+        let length = self.selections[index].length;
+        let mut last = current_index;
+
+        for offset in 0..length {
+            if self.text_buffer[current_index].is_newline() && offset != length - 1 {
+                last = current_index + 1;
+            }
+            current_index += 1;
+        }
+
+        return last;
     }
 
     fn character_mode(&mut self) {
@@ -611,7 +680,7 @@ impl Editor {
 
                         let find = self.find_replace_dialogue.find_box.get();
                         let replace = self.find_replace_dialogue.replace_box.get();
-                        self.content = self.content.replace(&find, &replace);
+                        self.text_buffer = self.text_buffer.replace(&find, &replace);
 
                         if find.len() > replace.len() {
 
@@ -646,6 +715,22 @@ impl Editor {
 
                 return success!(handled);
             },
+
+            DialogueMode::Action => {
+                let (handled, status) = self.action_dialogue.handle_action(context, action);
+                if let Some(completed) = status {
+                    let literal = self.action_dialogue.action_box.get();
+                    self.action_dialogue.action_box.clear();
+                    self.dialogue_mode = DialogueMode::None;
+
+                    if completed {
+                        let action = confirm!(Action::from_literal(&literal));
+                        self.handle_action(context, action);
+                        return success!(true);
+                    }
+                }
+                return success!(handled);
+            },
         }
 
         match action {
@@ -661,6 +746,8 @@ impl Editor {
             Action::SetLanguage => handle_return!(self.open_set_language_dialogue()),
 
             Action::FindReplace => handle_return!(self.open_find_replace_dialogue()),
+
+            Action::Action => handle_return!(self.open_action_dialogue()),
 
             Action::Down => handle_return!(self.move_down(context)),
 
@@ -690,6 +777,8 @@ impl Editor {
 
             Action::Abort => handle_return!(self.drop_selections()),
 
+            Action::Rotate => handle_return!(self.rotate_selections()),
+
             Action::Confirm => {
                 if self.adding_selection {
                     self.adding_selection = false;
@@ -718,8 +807,78 @@ impl Editor {
         //}
     }
 
-    fn update_find_replace(&mut self) {
+    fn unadvance_selections(&mut self, index: usize, offset: usize) {
+        let base_index = self.selections[index].index;
+        for selection in self.selections.iter_mut() {
+            if selection.index > base_index {
+                selection.index -= offset;
+            }
+        }
+    }
 
+    fn advance_selections(&mut self, index: usize, offset: usize) {
+        let base_index = self.selections[index].index;
+        for selection in self.selections.iter_mut() {
+            if selection.index > base_index {
+                selection.index += offset;
+            }
+        }
+    }
+
+    fn get_selected_text(&self, index: usize) -> VectorString {
+        let text_index = self.selections[index].index;
+        let length = self.selections[index].length;
+        return self.text_buffer.slice(text_index, text_index + length - 1);
+    }
+
+    fn replace_selected_text(&mut self, index: usize, new_text: VectorString) {
+
+        let current_length = self.selections[index].length;
+        let new_length = new_text.len();
+
+        let mut current_index = self.selections[index].index;
+        let mut offset = 0;
+
+        while offset < current_length && offset < new_length {
+            self.text_buffer[current_index] = new_text[offset];
+            current_index += 1;
+            offset += 1;
+        }
+
+        if current_length > new_length {
+            for _offset in offset..current_length {
+                self.text_buffer.remove(current_index);
+            }
+
+            self.unadvance_selections(index, current_length - new_length);
+        } else if current_length < new_length {
+            for offset in offset..new_length {
+                self.text_buffer.insert(current_index, new_text[offset]);
+                current_index += 1;
+            }
+
+            self.advance_selections(index, new_length - current_length);
+        }
+    }
+
+    fn rotate_selections(&mut self) {
+        if self.selections.len() > 1 {
+            let mut buffer = self.get_selected_text(self.selections.len() - 1);
+
+            for index in 0..self.selections.len() {
+                let new_text = self.get_selected_text(index);
+                let new_length = buffer.len();
+
+                self.replace_selected_text(index, buffer);
+                self.selections[index].length = new_length;
+                buffer = new_text;
+            }
+
+            self.parse();
+        }
+    }
+
+    fn update_find_replace(&mut self) {
         let new_string = self.find_replace_dialogue.find_box.get();
 
         match new_string.is_empty() {
@@ -746,7 +905,7 @@ impl Editor {
 
         self.clear_selections();
 
-        let positions = self.content.position(string);
+        let positions = self.text_buffer.position(string);
         let length = string.len();
 
         for index in positions {
@@ -776,6 +935,11 @@ impl Editor {
         self.update_find_replace();
     }
 
+    fn open_action_dialogue(&mut self) {
+
+        self.dialogue_mode = DialogueMode::Action;
+    }
+
     pub fn add_character(&mut self, character: Character) {
 
         match self.dialogue_mode.clone() {
@@ -790,7 +954,28 @@ impl Editor {
                 self.update_find_replace();
             },
 
-            _other => return,
+            DialogueMode::Action => self.action_dialogue.add_character(character),
+
+            DialogueMode::Error(..) => panic!(),
+
+            DialogueMode::None => {
+                for index in 0..self.selections.len() {
+                    if self.selections[index].length > 1 {
+                        self.replace_selected_text(index, format_vector!("{}", character));
+                        self.selections[index].reset();
+                        self.selections[index].index += 1;
+                        continue;
+                    }
+
+                    let current_index = self.selections[index].index;
+                    self.text_buffer.insert(current_index, character);
+                    self.selections[index].index += 1;
+                    self.advance_selections(index, 1);
+                }
+
+                self.character_mode();
+                self.parse();
+            },
         }
     }
 
@@ -845,7 +1030,7 @@ impl Editor {
             character_text.set_fill_color(self.tokens[token_index].get_color(context));
         }
 
-        for index in index..self.content.len() {
+        for index in index..self.text_buffer.len() {
             if top_offset >= self.size.y {
                 break;
             }
@@ -870,12 +1055,12 @@ impl Editor {
             }
 
             if left_offset <= self.size.x {
-                character_text.set_string(&format!("{}", self.content[index].as_char()));
+                character_text.set_string(&format!("{}", self.text_buffer[index].as_char()));
                 character_text.set_position(Vector2f::new(left_offset, top_offset + line_padding));
                 framebuffer.draw(&character_text);
             }
 
-            if self.content[index].is_newline() {
+            if self.text_buffer[index].is_newline() {
                 left_offset = line_number_offset + context.theme.panel.left_offset * self.font_size as f32;
                 top_offset += line_scaling;
                 line_number += 1;
@@ -911,7 +1096,7 @@ impl Editor {
                     draw_line = false;
                 }
 
-                if self.content[self.selections[index].index + offset].is_newline() {
+                if self.text_buffer[self.selections[index].index + offset].is_newline() {
                     top_offset += line_scaling;
                     draw_line = true;
                 }
@@ -977,12 +1162,12 @@ impl Editor {
 
                 base.set_position(Vector2f::new(left_offset, top_offset));
                 selection_text.set_position(Vector2f::new(left_offset, top_offset));
-                selection_text.set_string(&format!("{}", self.content[selection.index + offset]));
+                selection_text.set_string(&format!("{}", self.text_buffer[selection.index + offset]));
 
                 framebuffer.draw(base);
                 framebuffer.draw(&selection_text);
 
-                if self.content[self.selections[index].index +  offset].is_newline() {
+                if self.text_buffer[self.selections[index].index +  offset].is_newline() {
                     left_offset = line_number_offset + context.theme.panel.left_offset * self.font_size as f32;
                     top_offset += line_scaling;
                 } else {
@@ -1078,6 +1263,8 @@ impl Editor {
             DialogueMode::SetLanguage => self.set_language_dialogue.draw(framebuffer, context, dialogue_size, offset),
 
             DialogueMode::FindReplace(..) => self.find_replace_dialogue.draw(framebuffer, context, dialogue_size, offset),
+
+            DialogueMode::Action => self.action_dialogue.draw(framebuffer, context, dialogue_size, offset),
         }
 
         framebuffer.display();

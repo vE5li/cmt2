@@ -120,7 +120,7 @@ pub fn key_from_literal(literal: &VectorString) -> Status<Key> {
         "f14" => return success!(Key::F14),
         "f15" => return success!(Key::F15),
         "pause" => return success!(Key::Pause),
-        invalid => return error!(Message, string!(str, "invalid key {}", invalid)),
+        invalid => return error!(Message, string!("invalid key {}", invalid)),
     }
 }
 
@@ -144,7 +144,7 @@ pub fn open_keyboard(device_name: &VectorString, sender: Sender<KeyEvent>) -> St
     let driver_file_path = format_vector!("/home/.poet/input/{}.data", device_name);
     let driver_map = confirm!(read_map(&driver_file_path));
 
-    let codes_map = confirm!(driver_map.index(&keyword!(str, "codes"))).unwrap();
+    let codes_map = confirm!(driver_map.index(&keyword!("codes"))).unwrap();
     let codes_map = unpack_map!(&codes_map);
 
     for (key, value) in codes_map.iter() {
@@ -152,17 +152,17 @@ pub fn open_keyboard(device_name: &VectorString, sender: Sender<KeyEvent>) -> St
         let codes_list = unpack_list!(value);
         for code in codes_list.iter() {
             let code = unpack_integer!(code);
-            ensure!(code >= 0  && code <= 255, Message, string!(str, "code out of range"));
+            ensure!(code >= 0  && code <= 255, Message, string!("code out of range"));
             codes.insert(code as u8, key.clone());
         }
     }
 
-    let composites_map = confirm!(driver_map.index(&keyword!(str, "composite"))).unwrap();
+    let composites_map = confirm!(driver_map.index(&keyword!("composite"))).unwrap();
     let composites_map = unpack_map!(&composites_map);
 
     for (key, value) in composites_map.iter() {
         let key = confirm!(Key::from_literal(&unpack_literal!(key)));
-        ensure!(!key.is_buffer() && !key.is_modifier(), Message, string!(str, "only named keys or characters may be composed"));
+        ensure!(!key.is_buffer() && !key.is_modifier(), Message, string!("only named keys or characters may be composed"));
 
         let bindings_list = unpack_list!(value);
         for binding in bindings_list.iter() {
@@ -178,39 +178,39 @@ pub fn open_keyboard(device_name: &VectorString, sender: Sender<KeyEvent>) -> St
                     match confirm!(Key::from_literal(&unpack_keyword!(binding_key))) {
 
                         Key::Modifier(modifier_type) => {
-                            ensure!(!excluded.contains(&modifier_type), Message, string!(str, "duplicate excluded modifier"));
+                            ensure!(!excluded.contains(&modifier_type), Message, string!("duplicate excluded modifier"));
                             excluded.push(modifier_type);
                         },
 
-                        _other => return error!(Message, string!(str, "only modifiers can be excluded in bindings")),
+                        _other => return error!(Message, string!("only modifiers can be excluded in bindings")),
                     }
                 } else {
                     match confirm!(Key::from_literal(&unpack_literal!(binding_key))) {
 
                         Key::Modifier(modifier_type) => {
-                            ensure!(!included.contains(&modifier_type), Message, string!(str, "duplicate included modifier"));
+                            ensure!(!included.contains(&modifier_type), Message, string!("duplicate included modifier"));
                             included.push(modifier_type);
                         },
 
                         Key::Character(character) => {
-                            ensure!(trigger.is_none(), Message, string!(str, "trigger may only be set once"));
+                            ensure!(trigger.is_none(), Message, string!("trigger may only be set once"));
                             trigger = Some(Key::Character(character));
                         },
 
                         Key::Named(named) => {
-                            ensure!(trigger.is_none(), Message, string!(str, "trigger may only be set once"));
+                            ensure!(trigger.is_none(), Message, string!("trigger may only be set once"));
                             trigger = Some(Key::Named(named));
                         },
 
                         Key::Buffer(index) => {
-                            ensure!(trigger.is_none(), Message, string!(str, "trigger may only be set once"));
+                            ensure!(trigger.is_none(), Message, string!("trigger may only be set once"));
                             trigger = Some(Key::Buffer(index));
                         },
                     }
                 }
             }
 
-            let trigger = expect!(trigger, Message, string!(str, "keybinding must have a trigger"));
+            let trigger = expect!(trigger, Message, string!("keybinding must have a trigger"));
             let new_binding = Binding::new(included, excluded, trigger);
             match composites.iter().position(|(binding, _)| binding.length() <= new_binding.length()) {
                 Some(index) => composites.insert(index, (new_binding, key)),

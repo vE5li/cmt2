@@ -5,4 +5,5 @@ authors = ["ve5li <ve5li@tuta.io>"]
 
 [dependencies]
 sfml = { git = "https://github.com/JeremyLetang/rust-sfml" }
-dst6 = { git = "https://github.com/vE5li/dst6.git" }
+dst6 = { path = "/usr/share/seamonkey/dst6" }
+#dst6 = { git = "https://github.com/vE5li/dst6.git" }

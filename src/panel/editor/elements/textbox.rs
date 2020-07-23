@@ -14,7 +14,6 @@ macro_rules! handle_return_none {
 
 pub struct TextBox {
     pub description: VectorString,
-    pub prompt: VectorString,
     pub content: VectorString,
     pub selection: Selection,
     pub displacement: usize,
@@ -22,20 +21,18 @@ pub struct TextBox {
 
 impl TextBox {
 
-    pub fn new(description: &'static str, prompt: &'static str, displacement: usize) -> Self {
+    pub fn new(description: &'static str, displacement: usize) -> Self {
         Self {
             description: VectorString::from(description),
-            prompt: VectorString::from(prompt),
             content: VectorString::from(" "),
             selection: Selection::new(0, 1, 0),
             displacement: displacement,
         }
     }
 
-    pub fn from(description: &'static str, prompt: &'static str, displacement: usize, content: VectorString) -> Self {
+    pub fn from(description: &'static str, displacement: usize, content: VectorString) -> Self {
         Self {
             description: VectorString::from(description),
-            prompt: VectorString::from(prompt),
             content: format_vector!("{} ", content),
             selection: Selection::new(content.len(), 1, 0),
             displacement: displacement,

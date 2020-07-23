@@ -12,7 +12,7 @@ impl OpenFileDialogue {
 
     pub fn new() -> Self {
         Self {
-            file_name_box: FileBox::new("file path", " > ", 0, false),
+            file_name_box: FileBox::new("file path", 0, false),
         }
     }
 

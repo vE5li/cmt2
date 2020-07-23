@@ -14,8 +14,8 @@ impl FindReplaceDialogue {
 
     pub fn new() -> Self {
         Self {
-            find_box: TextBox::new("find", " > ", 0),
-            replace_box: TextBox::new("replace", " > ", 1),
+            find_box: TextBox::new("find", 0),
+            replace_box: TextBox::new("replace", 1),
             find_focused: true,
         }
     }

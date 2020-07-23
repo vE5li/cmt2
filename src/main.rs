@@ -29,10 +29,10 @@ pub struct Instance<'i> {
 impl<'i> Instance<'i> {
 
     pub fn new(arguments: &Vec<String>) -> Self {
-        let context = display!(Context::new(VectorString::from("/home/.poet/context.data"), &VectorString::from("/home/.poet/configuration/")), &None, &map!(), &map!());
+        let context = display!(Context::new(VectorString::from("/home/.poet/context.data"), &VectorString::from("/home/.poet/configuration/")));
 
         let mut panels = Vec::new();
-        let mut panel1 = display!(Panel::new_editor(context.font_size), &None, &map!(), &map!());
+        let mut panel1 = display!(Panel::new_editor(context.font_size));
 
         let character_scaling = context.character_spacing * context.font_size as f32;
         let panel_gap = context.theme.panel.gap * character_scaling;
@@ -84,8 +84,6 @@ impl<'i> Instance<'i> {
 
                     Event::KeyPressed { code, shift, ctrl, alt, system } => {
                         if !is_modifier_key(&code) {
-                            //println!("PRESSED : {:?} : shft {:?} : ctrl {:?} : alt {:?} : system {:?}", code, shift, ctrl, alt, system);
-
                             let modifiers = Modifiers::from(shift, ctrl, alt, system);
                             let key_event = KeyEvent::new(code, modifiers);
 
@@ -159,7 +157,7 @@ impl<'i> Instance<'i> {
                                     },
 
                                     unhandled => {
-                                        if display!(self.panels[self.focused_panel].handle_action(&self.context, action), &None, &map!(), &map!()) {
+                                        if display!(self.panels[self.focused_panel].handle_action(&self.context, action)) {
                                             add_character = false;
                                             continue 'execute;
                                         }
@@ -170,10 +168,13 @@ impl<'i> Instance<'i> {
                     },
 
                     Event::TextEntered { unicode } => {
-                        if add_character {
+                        if add_character && unicode as u32 == 13 {
+                            self.panels[self.focused_panel].add_character(&self.context, Character::from_char('\n'));
+                        }
+
+                        if add_character && unicode as u32 >= 32 && unicode as u32 <= 127 {
                             self.panels[self.focused_panel].add_character(&self.context, Character::from_char(unicode));
                         }
-                        //println!("TEXT : {}", unicode);
                     },
 
                     Event::Resized { width, height } => {
@@ -228,7 +229,7 @@ impl<'i> Instance<'i> {
     fn new_editor(&mut self) {
         if self.panels.len() < MAXIMUM_PANEL_COUNT {
             let new_index = self.focused_panel + 1;
-            let mut panel = display!(Panel::new_editor(self.context.font_size), &None, &map!(), &map!());
+            let mut panel = display!(Panel::new_editor(self.context.font_size));
 
             match new_index == self.panels.len() {
                 true => self.panels.push(panel),

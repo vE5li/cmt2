@@ -25,6 +25,8 @@ pub enum Action {
     AddSelection,
     FocusNext,
 
+    Action,
+
     Abort,
     Confirm,
     Remove,
@@ -50,6 +52,7 @@ pub enum Action {
     Copy,
     Paste,
     Cut,
+    Rotate,
 }
 
 impl Action {
@@ -74,6 +77,8 @@ impl Action {
             "end" => return success!(Action::End),
             "add_selection" => return success!(Action::AddSelection),
             "focus_next" => return success!(Action::FocusNext),
+
+            "action" => return success!(Action::Action),
 
             "abort" => return success!(Action::Abort),
             "confirm" => return success!(Action::Confirm),
@@ -104,7 +109,9 @@ impl Action {
             "copy" => return success!(Action::Copy),
             "paste" => return success!(Action::Paste),
             "cut" => return success!(Action::Cut),
-            invalid => return error!(Message, string!(str, "invalid action {}", invalid)),
+            "rotate" => return success!(Action::Rotate),
+
+            invalid => return error!(Message, string!("invalid action {}", invalid)),
         }
     }
 }
