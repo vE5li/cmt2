@@ -94,7 +94,6 @@ impl<'i> Instance<'i> {
 
                                     Action::ToggleAppendLines => {
                                         self.context.toggle_append_lines();
-                                        self.update_panels();
                                         add_character = false;
                                         continue 'execute;
                                     },
@@ -116,6 +115,12 @@ impl<'i> Instance<'i> {
                                     Action::ToggleSelectionLines => {
                                         self.context.toggle_selection_lines();
                                         self.update_panels();
+                                        add_character = false;
+                                        continue 'execute;
+                                    },
+
+                                    Action::TogglePreserveLines => {
+                                        self.context.toggle_preserve_lines();
                                         add_character = false;
                                         continue 'execute;
                                     },

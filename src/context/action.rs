@@ -7,6 +7,7 @@ pub enum Action {
     ToggleStatusBar,
     ToggleLineNumbers,
     ToggleSelectionLines,
+    TogglePreserveLines,
     MoveFocusLeft,
     MoveFocusRight,
 

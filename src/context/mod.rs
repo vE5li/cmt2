@@ -46,6 +46,7 @@ pub struct Context {
     pub theme: Theme,
     pub font: SfBox<Font>,
     pub selection_lines: bool,
+    pub preserve_lines: bool,
 }
 
 impl Context {
@@ -158,6 +159,7 @@ impl Context {
             theme: theme,
             font: font,
             selection_lines: true,
+            preserve_lines: true,
         })
     }
 
@@ -187,6 +189,10 @@ impl Context {
 
     pub fn toggle_selection_lines(&mut self) {
         self.selection_lines = !self.selection_lines;
+    }
+
+    pub fn toggle_preserve_lines(&mut self) {
+        self.preserve_lines = !self.preserve_lines;
     }
 
     pub fn safe(&self) {

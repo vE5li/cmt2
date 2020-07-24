@@ -940,7 +940,7 @@ impl Editor {
         self.dialogue_mode = DialogueMode::Action;
     }
 
-    pub fn add_character(&mut self, character: Character) {
+    pub fn add_character(&mut self, context: &Context, character: Character) {
 
         match self.dialogue_mode.clone() {
 
@@ -960,6 +960,11 @@ impl Editor {
 
             DialogueMode::None => {
                 for index in 0..self.selections.len() {
+                    if self.mode.is_line() && context.preserve_lines {
+                        let newline_index = self.selections[index].index + self.selections[index].length;
+                        self.text_buffer.insert(newline_index, Character::from_char('\n'));
+                    }
+
                     if self.selections[index].length > 1 {
                         self.replace_selected_text(index, format_vector!("{}", character));
                         self.selections[index].reset();

@@ -93,7 +93,7 @@ impl<'p> Panel<'p> {
 
     pub fn add_character(&mut self, context: &Context, character: Character) {
         match &mut self.mode {
-            PanelMode::Editor(editor) => editor.add_character(character),
+            PanelMode::Editor(editor) => editor.add_character(context, character),
             PanelMode::Terminal => { },
         };
         self.update(context, true);
