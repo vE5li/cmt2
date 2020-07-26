@@ -1,6 +1,6 @@
 use kami::*;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Hash)]
 pub enum Action {
     Quit,
     ToggleAppendLines,

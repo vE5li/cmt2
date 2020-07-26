@@ -88,6 +88,12 @@ impl<'i> Instance<'i> {
                             let key_event = KeyEvent::new(code, modifiers);
 
                             for action in self.context.get_matching_actions(&key_event) {
+
+                                if display!(self.panels[self.focused_panel].handle_action(&self.context, action)) {
+                                    add_character = false;
+                                    continue 'execute;
+                                }
+
                                 match action {
 
                                     Action::Quit => return,
@@ -161,12 +167,7 @@ impl<'i> Instance<'i> {
                                         continue 'execute;
                                     },
 
-                                    unhandled => {
-                                        if display!(self.panels[self.focused_panel].handle_action(&self.context, action)) {
-                                            add_character = false;
-                                            continue 'execute;
-                                        }
-                                    }
+                                    _unhandled => { },
                                 }
                             }
                         }
@@ -175,10 +176,10 @@ impl<'i> Instance<'i> {
                     Event::TextEntered { unicode } => {
                         if add_character && unicode as u32 == 13 {
                             self.panels[self.focused_panel].add_character(&self.context, Character::from_char('\n'));
-                        }
-
-                        if add_character && unicode as u32 >= 32 && unicode as u32 <= 127 {
+                            add_character = true;
+                        } else if add_character && unicode as u32 >= 32 && unicode as u32 <= 127 {
                             self.panels[self.focused_panel].add_character(&self.context, Character::from_char(unicode));
+                            add_character = true;
                         }
                     },
 
