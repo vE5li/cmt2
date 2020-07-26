@@ -16,7 +16,7 @@ impl FileBox {
 
     pub fn new(description: &'static str, displacement: usize, allow_unknown: bool) -> Self {
 
-        let entries = match get_directory_entries(&VectorString::from("/home/cmt2/")) {
+        let entries = match get_directory_entries(&VectorString::from("./")) {
             Status::Success(entries) => entries,
             Status::Error(..) => Vec::new(),
         };
@@ -33,7 +33,14 @@ impl FileBox {
     }
 
     fn update_entries(&mut self, path: &VectorString) {
-        match get_directory_entries(&format_vector!("/home/cmt2/{}", path)) {
+
+        let directories = self.combobox.get().position(&VectorString::from("/")).len();
+        let complete_path = match directories {
+            0 => format_vector!("./{}", path),
+            _other => path.clone(),
+        };
+
+        match get_directory_entries(&complete_path) {
             Status::Success(entries) => self.combobox.variants = entries,
             Status::Error(..) => self.combobox.variants.clear(),
         }
