@@ -23,7 +23,7 @@ macro_rules! handle_maybe_return {
 #[derive(Clone)]
 pub enum ComboSelection {
     TextBox,
-    Variant(usize, VectorString),
+    Variant(usize, SharedString),
 }
 
 impl ComboSelection {
@@ -46,7 +46,7 @@ impl ComboSelection {
 pub struct ComboBox {
     pub textbox: TextBox,
     pub allow_unknown: bool,
-    pub variants: Vec<VectorString>,
+    pub variants: Vec<SharedString>,
     pub selection: ComboSelection,
     pub displacement: usize,
     pub path_mode: bool,
@@ -55,7 +55,7 @@ pub struct ComboBox {
 
 impl ComboBox {
 
-    pub fn new(description: &'static str, displacement: usize, allow_unknown: bool, path_mode: bool, variants: Vec<VectorString>) -> Self {
+    pub fn new(description: &'static str, displacement: usize, allow_unknown: bool, path_mode: bool, variants: Vec<SharedString>) -> Self {
         Self {
             textbox: TextBox::new(description, displacement),
             allow_unknown: allow_unknown,
@@ -123,13 +123,13 @@ impl ComboBox {
         }
     }
 
-    pub fn get_combined(&self, suffix: &VectorString) -> VectorString {
+    pub fn get_combined(&self, suffix: &SharedString) -> SharedString {
         let original = match &self.selection {
             ComboSelection::Variant(_index, original) => original.clone(),
             ComboSelection::TextBox => self.textbox.get(),
         };
 
-        let positions = original.position(&VectorString::from("/"));
+        let positions = original.position(&SharedString::from("/"));
         if !positions.is_empty() {
             let mut combined = original.slice(0, positions[positions.len() - 1]);
             combined.push_str(suffix);
@@ -139,14 +139,14 @@ impl ComboBox {
         return suffix.clone();
     }
 
-    pub fn valid_variants(&self) -> Vec<VectorString> {
+    pub fn valid_variants(&self) -> Vec<SharedString> {
         let mut original = match &self.selection {
             ComboSelection::Variant(_index, original) => original.clone(),
             ComboSelection::TextBox => self.textbox.get(),
         };
 
         if self.path_mode {
-            let pieces = original.split(&VectorString::from("/"), false);
+            let pieces = original.split(&SharedString::from("/"), false);
             original = pieces[pieces.len() - 1].clone();
         }
 
@@ -155,7 +155,7 @@ impl ComboBox {
         return valid_variants;
     }
 
-    pub fn get(&self) -> VectorString {
+    pub fn get(&self) -> SharedString {
         return self.textbox.get();
     }
 

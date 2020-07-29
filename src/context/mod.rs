@@ -31,7 +31,7 @@ macro_rules! fetch_color {
 }
 
 pub struct Context {
-    save_file: VectorString,
+    save_file: SharedString,
     pub line_numbers: bool,
     pub font_size: usize,
     pub line_spacing: f32,
@@ -51,7 +51,7 @@ pub struct Context {
 
 impl Context {
 
-    pub fn new(save_file: VectorString, configuration_directory: &VectorString) -> Status<Self> {
+    pub fn new(save_file: SharedString, configuration_directory: &SharedString) -> Status<Self> {
         let mut configuration = map!();
         let mut bindings = Vec::new();
         let mut theme = Theme::new();

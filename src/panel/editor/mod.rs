@@ -32,10 +32,10 @@ pub fn length_from_position(position: Vec<Position>) -> usize {
 }
 
 pub struct Editor {
-    file_name: Option<VectorString>,
-    text_buffer: VectorString,
+    file_name: Option<SharedString>,
+    text_buffer: SharedString,
     compiler: Data,
-    language: VectorString,
+    language: SharedString,
     tokens: Vec<EditorToken>,
     selections: Vec<Selection>,
     mode: SelectionMode,
@@ -53,13 +53,13 @@ pub struct Editor {
 impl Editor {
 
     pub fn new(font_size: usize) -> Status<Self> {
-        let language = VectorString::from("none");
+        let language = SharedString::from("none");
         success!(Self {
             file_name: None,
-            text_buffer: VectorString::from("\n"),
+            text_buffer: SharedString::from("\n"),
             compiler: confirm!(Self::load_language(&language)),
             language: language,
-            tokens: vec![EditorToken::new(TokenType::Operator(VectorString::from("newline")), 0, 1)],
+            tokens: vec![EditorToken::new(TokenType::Operator(SharedString::from("newline")), 0, 1)],
             selections: vec![Selection::new(0, 1, 0)],
             mode: SelectionMode::Character,
             adding_selection: false,
@@ -83,7 +83,7 @@ impl Editor {
         //}
     }
 
-    pub fn open_file(&mut self, file_name: VectorString) -> Status<()> {
+    pub fn open_file(&mut self, file_name: SharedString) -> Status<()> {
 
         // make sure there is no unsaved changes
         self.text_buffer = confirm!(read_file(&file_name));
@@ -93,21 +93,21 @@ impl Editor {
         // make sure that the file ends on a newline and if not, append one
 
         // set language for specific file if specified and only load if it changed
-        let pieces = file_name.split(&VectorString::from("."), true);
+        let pieces = file_name.split(&SharedString::from("."), true);
         self.language = if pieces.len() > 1 {
             match pieces.last().unwrap().printable().as_ref() {
-                "rs" => VectorString::from("rust"),
-                "cip" => VectorString::from("cipher"),
-                "asm" => VectorString::from("doofenshmirtz"),
-                "uni" => VectorString::from("entleman"),
-                "data" => VectorString::from("seamonkey"),
-                _other => VectorString::from("none"),
+                "rs" => SharedString::from("rust"),
+                "cip" => SharedString::from("cipher"),
+                "asm" => SharedString::from("doofenshmirtz"),
+                "uni" => SharedString::from("entleman"),
+                "data" => SharedString::from("seamonkey"),
+                _other => SharedString::from("none"),
             }
         } else {
-            VectorString::from("none")
+            SharedString::from("none")
         };
 
-        //self.language = VectorString::from("none");
+        //self.language = SharedString::from("none");
         self.compiler = confirm!(Self::load_language(&self.language));
         return self.parse();
     }
@@ -119,7 +119,7 @@ impl Editor {
         self.mode = SelectionMode::Character;
     }
 
-    fn load_language(language: &VectorString) -> Status<Data> {
+    fn load_language(language: &SharedString) -> Status<Data> {
         let file_path = format_vector!("/home/.poet/languages/{}.data", language);
         return read_map(&file_path);
     }
@@ -825,13 +825,13 @@ impl Editor {
         }
     }
 
-    fn get_selected_text(&self, index: usize) -> VectorString {
+    fn get_selected_text(&self, index: usize) -> SharedString {
         let text_index = self.selections[index].index;
         let length = self.selections[index].length;
         return self.text_buffer.slice(text_index, text_index + length - 1);
     }
 
-    fn replace_selected_text(&mut self, index: usize, new_text: VectorString) {
+    fn replace_selected_text(&mut self, index: usize, new_text: SharedString) {
 
         let current_length = self.selections[index].length;
         let new_length = new_text.len();
@@ -901,7 +901,7 @@ impl Editor {
         self.adding_selection = false;
     }
 
-    fn set_selections_from_string(&mut self, string: &VectorString) {
+    fn set_selections_from_string(&mut self, string: &SharedString) {
 
         self.clear_selections();
 
@@ -985,7 +985,7 @@ impl Editor {
         }
     }
 
-    fn draw_error_message(&self, framebuffer: &mut RenderTexture, context: &Context, message: &VectorString) {
+    fn draw_error_message(&self, framebuffer: &mut RenderTexture, context: &Context, message: &SharedString) {
         //terminal.set_color_pair(&context.theme.panel.background, &context.theme.error_color, true);
         //terminal.move_cursor(0, context.line_number_offset);
         //print!("{}", message);

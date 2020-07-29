@@ -1,10 +1,10 @@
-use kami::VectorString;
+use kami::SharedString;
 use super::super::Selection;
 
 #[derive(Clone)]
 pub enum DialogueMode {
     None,
-    Error(VectorString),
+    Error(SharedString),
     OpenFile,
     SetLanguage,
     FindReplace(Vec<Selection>),

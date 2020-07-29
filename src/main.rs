@@ -29,7 +29,7 @@ pub struct Instance<'i> {
 impl<'i> Instance<'i> {
 
     pub fn new(arguments: &Vec<String>) -> Self {
-        let context = display!(Context::new(VectorString::from("/home/.poet/context.data"), &VectorString::from("/home/.poet/configuration/")));
+        let context = display!(Context::new(SharedString::from("/home/.poet/context.data"), &SharedString::from("/home/.poet/configuration/")));
 
         let mut panels = Vec::new();
         let mut panel1 = display!(Panel::new_editor(context.font_size));

@@ -12,7 +12,7 @@ impl SetLanguageDialogue {
 
     pub fn new() -> Self {
         Self {
-            language_box: ComboBox::new("language name", 0, false, false, vec![VectorString::from("cipher"), VectorString::from("c++"), VectorString::from("default"), VectorString::from("doofenshmirtz"), VectorString::from("entleman"), VectorString::from("none"), VectorString::from("rust"), VectorString::from("seamonkey")]),
+            language_box: ComboBox::new("language name", 0, false, false, vec![SharedString::from("cipher"), SharedString::from("c++"), SharedString::from("default"), SharedString::from("doofenshmirtz"), SharedString::from("entleman"), SharedString::from("none"), SharedString::from("rust"), SharedString::from("seamonkey")]),
         }
     }
 

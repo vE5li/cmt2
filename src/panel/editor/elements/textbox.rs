@@ -13,8 +13,8 @@ macro_rules! handle_return_none {
 }
 
 pub struct TextBox {
-    pub description: VectorString,
-    pub content: VectorString,
+    pub description: SharedString,
+    pub content: SharedString,
     pub selection: Selection,
     pub displacement: usize,
 }
@@ -23,29 +23,29 @@ impl TextBox {
 
     pub fn new(description: &'static str, displacement: usize) -> Self {
         Self {
-            description: VectorString::from(description),
-            content: VectorString::from(" "),
+            description: SharedString::from(description),
+            content: SharedString::from(" "),
             selection: Selection::new(0, 1, 0),
             displacement: displacement,
         }
     }
 
-    pub fn from(description: &'static str, displacement: usize, content: VectorString) -> Self {
+    pub fn from(description: &'static str, displacement: usize, content: SharedString) -> Self {
         Self {
-            description: VectorString::from(description),
+            description: SharedString::from(description),
             content: format_vector!("{} ", content),
             selection: Selection::new(content.len(), 1, 0),
             displacement: displacement,
         }
     }
 
-    pub fn get(&self) -> VectorString {
+    pub fn get(&self) -> SharedString {
         let mut cut_content = self.content.clone();
         cut_content.pop();
         return cut_content;
     }
 
-    pub fn set(&mut self, content: VectorString) {
+    pub fn set(&mut self, content: SharedString) {
         self.selection.reset();
         self.selection.index = content.len();
         self.content = format_vector!("{} ", content);
@@ -68,7 +68,7 @@ impl TextBox {
     }
 
     pub fn clear(&mut self) {
-        self.content = VectorString::from(" ");
+        self.content = SharedString::from(" ");
         self.selection.reset();
         self.selection.index = 0;
     }

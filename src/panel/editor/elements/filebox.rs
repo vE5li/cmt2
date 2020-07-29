@@ -16,7 +16,7 @@ impl FileBox {
 
     pub fn new(description: &'static str, displacement: usize, allow_unknown: bool) -> Self {
 
-        let entries = match get_directory_entries(&VectorString::from("./")) {
+        let entries = match get_directory_entries(&SharedString::from("./")) {
             Status::Success(entries) => entries,
             Status::Error(..) => Vec::new(),
         };
@@ -28,13 +28,13 @@ impl FileBox {
         }
     }
 
-    pub fn get(&self) -> VectorString {
+    pub fn get(&self) -> SharedString {
         return self.combobox.get();
     }
 
-    fn update_entries(&mut self, path: &VectorString) {
+    fn update_entries(&mut self, path: &SharedString) {
 
-        let directories = self.combobox.get().position(&VectorString::from("/")).len();
+        let directories = self.combobox.get().position(&SharedString::from("/")).len();
         let complete_path = match directories {
             0 => format_vector!("./{}", path),
             _other => path.clone(),
@@ -47,13 +47,13 @@ impl FileBox {
     }
 
     fn check_directories(&mut self) {
-        let directories = self.combobox.get().position(&VectorString::from("/")).len();
+        let directories = self.combobox.get().position(&SharedString::from("/")).len();
         if self.directories != directories {
             self.directories = directories;
 
             match directories {
-                0 => self.update_entries(&VectorString::new()),
-                _other => self.update_entries(&self.combobox.get_combined(&VectorString::new())),
+                0 => self.update_entries(&SharedString::new()),
+                _other => self.update_entries(&self.combobox.get_combined(&SharedString::new())),
             }
         }
     }

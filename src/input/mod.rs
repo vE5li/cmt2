@@ -21,7 +21,7 @@ pub fn is_modifier_key(key: &Key) -> bool {
     }
 }
 
-pub fn key_from_literal(literal: &VectorString) -> Status<Key> {
+pub fn key_from_literal(literal: &SharedString) -> Status<Key> {
     match literal.printable().as_str() {
         "a" => return success!(Key::A),
         "b" => return success!(Key::B),
@@ -135,7 +135,7 @@ fn toggle_active(active: bool, state: u8) -> bool {
     }
 }
 
-pub fn open_keyboard(device_name: &VectorString, sender: Sender<KeyEvent>) -> Status<()> {
+pub fn open_keyboard(device_name: &SharedString, sender: Sender<KeyEvent>) -> Status<()> {
     use std::fs::File;
     use std::io::Read;
 

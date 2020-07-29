@@ -58,7 +58,7 @@ pub enum Action {
 
 impl Action {
 
-    pub fn from_literal(literal: &VectorString) -> Status<Self> {
+    pub fn from_literal(literal: &SharedString) -> Status<Self> {
         match literal.printable().as_str() {
             "quit" => return success!(Action::Quit),
             "append_lines" => return success!(Action::ToggleAppendLines),
