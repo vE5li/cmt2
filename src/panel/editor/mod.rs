@@ -963,6 +963,7 @@ impl Editor {
                     if self.mode.is_line() && context.preserve_lines {
                         let newline_index = self.selections[index].index + self.selections[index].length;
                         self.text_buffer.insert(newline_index, Character::from_char('\n'));
+                        self.advance_selections(index, 1);
                     }
 
                     if self.selections[index].length > 1 {
