@@ -17,6 +17,9 @@
     add_selection   [ [ control enter ] ]
     focus_next      [ [ tab ] ]
 
+    start           [ [ start ] ]
+    end             [ [ end ] ]
+
     abort           [ [ escape ] ]
     confirm         [ [ enter ] ]
     remove          [ [ backspace ] ]
@@ -45,4 +48,6 @@
     copy            [ [ control 'c' ] ]
     paste           [ [ control 'v' ] ]
     cut             [ [ control 'x' ] ]
+    rotate          [ [ control 's' ] ]
+    action          [ [ control 'a' ] ]
 }
