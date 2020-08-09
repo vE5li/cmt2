@@ -33,7 +33,7 @@ impl TextBox {
     pub fn from(description: &'static str, displacement: usize, content: SharedString) -> Self {
         Self {
             description: SharedString::from(description),
-            content: format_vector!("{} ", content),
+            content: format_shared!("{} ", content),
             selection: Selection::new(content.len(), 1, 0),
             displacement: displacement,
         }
@@ -48,7 +48,7 @@ impl TextBox {
     pub fn set(&mut self, content: SharedString) {
         self.selection.reset();
         self.selection.index = content.len();
-        self.content = format_vector!("{} ", content);
+        self.content = format_shared!("{} ", content);
     }
 
     fn remove_character(&mut self) {
@@ -134,7 +134,7 @@ impl TextBox {
         text_box_text.set_fill_color(context.theme.dialogue.text);
 
         match self.content.len() > 1 {
-            true => text_box_text.set_style(context.theme.dialogue.style),
+            true => text_box_text.set_style(context.theme.dialogue.text_style),
             false => text_box_text.set_style(context.theme.dialogue.ghost_style),
         }
 

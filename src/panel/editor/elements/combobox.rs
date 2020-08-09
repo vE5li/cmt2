@@ -248,7 +248,7 @@ impl ComboBox {
             text_box_text.set_font(&context.font);
             text_box_text.set_character_size(context.font_size as u32);
             text_box_text.set_outline_thickness(0.0);
-            text_box_text.set_style(context.theme.dialogue.style);
+            text_box_text.set_style(context.theme.dialogue.text_style);
 
             let mut top_offset = offset.y + (self.displacement + 1) as f32 * dialogue_height;
             let valid_variants = self.valid_variants();

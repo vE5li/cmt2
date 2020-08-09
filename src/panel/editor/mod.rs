@@ -120,7 +120,7 @@ impl Editor {
     }
 
     fn load_language(language: &SharedString) -> Status<Data> {
-        let file_path = format_vector!("/home/.poet/languages/{}.data", language);
+        let file_path = format_shared!("/home/.poet/languages/{}.data", language);
         return read_map(&file_path);
     }
 
@@ -635,7 +635,7 @@ impl Editor {
                     if completed {
                         let file_name = self.open_file_dialogue.file_name_box.get();
                         if let Status::Error(error) = self.open_file(file_name.clone()) { // handle the actual error
-                            self.dialogue_mode = DialogueMode::Error(format_vector!("missing file {}", file_name));
+                            self.dialogue_mode = DialogueMode::Error(format_shared!("missing file {}", file_name));
                             return success!(handled);
                         }
                     }
@@ -658,7 +658,7 @@ impl Editor {
                             },
 
                             Status::Error(error) => { // handle the actual error
-                                self.dialogue_mode = DialogueMode::Error(format_vector!("missing language file {}.data", new_language));
+                                self.dialogue_mode = DialogueMode::Error(format_shared!("missing language file {}.data", new_language));
                                 self.set_language_dialogue.language_box.clear();
                                 return success!(handled);
                             }
@@ -967,7 +967,7 @@ impl Editor {
                     }
 
                     if self.selections[index].length > 1 {
-                        self.replace_selected_text(index, format_vector!("{}", character));
+                        self.replace_selected_text(index, format_shared!("{}", character));
                         self.selections[index].reset();
                         self.selections[index].index += 1;
                         continue;
@@ -999,7 +999,7 @@ impl Editor {
         character_text.set_character_size(self.font_size as u32);
         character_text.set_outline_thickness(0.0);
         character_text.set_fill_color(context.theme.panel.text);
-        character_text.set_style(context.theme.panel.style);
+        character_text.set_style(context.theme.panel.text_style);
 
         let character_scaling = context.character_spacing * self.font_size as f32;
         let line_scaling = context.line_spacing * self.font_size as f32;
@@ -1030,10 +1030,11 @@ impl Editor {
         line_number_text.set_outline_thickness(0.0);
         line_number_text.set_fill_color(context.theme.line_number.text);
         line_number_text.set_string(&format!("{}", line_number));
-        line_number_text.set_style(context.theme.line_number.style);
+        line_number_text.set_style(context.theme.line_number.text_style);
 
         if context.highlighting {
             character_text.set_fill_color(self.tokens[token_index].get_color(context));
+            character_text.set_style(self.tokens[token_index].get_style(context));
         }
 
         for index in index..self.text_buffer.len() {
@@ -1047,7 +1048,7 @@ impl Editor {
                     framebuffer.draw(&line_number_base);
 
                     let text_position = Vector2f::new(context.theme.line_number.offset * self.font_size as f32 + context.theme.line_number.text_offset * self.font_size as f32, top_offset + line_padding + context.theme.line_number.gap * line_scaling);
-                    draw_spaced_text(framebuffer, &mut line_number_text, text_position, &format_vector!("{}", line_number), character_scaling);
+                    draw_spaced_text(framebuffer, &mut line_number_text, text_position, &format_shared!("{}", line_number), character_scaling);
                 }
 
                 draw_newline = false;
@@ -1057,6 +1058,7 @@ impl Editor {
                 token_index += 1;
                 if context.highlighting {
                     character_text.set_fill_color(self.tokens[token_index].get_color(context));
+                    character_text.set_style(self.tokens[token_index].get_style(context));
                 }
             }
 
@@ -1140,7 +1142,7 @@ impl Editor {
         selection_text.set_font(&context.font);
         selection_text.set_character_size(self.font_size as u32);
         selection_text.set_outline_thickness(0.0);
-        selection_text.set_style(context.theme.selection.style);
+        selection_text.set_style(context.theme.selection.text_style);
 
         for (index, selection) in self.selections.iter().enumerate() {
             let mut top_offset = self.line_from_index(selection.index) as f32 * line_scaling + context.theme.panel.top_offset * self.font_size as f32;
@@ -1192,7 +1194,7 @@ impl Editor {
             status_bar.set_outline_thickness(0.0);
             status_bar.set_position(Vector2f::new(0.0, self.size.y - status_bar_height));
             framebuffer.draw(&status_bar);
-        } else {
+        } else if context.focus_bar {
             let focus_bar_height = context.theme.focus_bar.height * context.font_size as f32;
             let mut focus_bar = RectangleShape::with_size(Vector2f::new(self.size.x, focus_bar_height));
             focus_bar.set_fill_color(context.theme.focus_bar.background);
@@ -1234,12 +1236,15 @@ impl Editor {
 
         framebuffer.clear(context.theme.panel.background);
 
-        if context.selection_lines {
+        if context.selection_lines && (focused || context.unfocused_selections) {
             self.draw_selection_lines(framebuffer, context);
         }
 
         self.draw_text(framebuffer, context);
-        self.draw_selections(framebuffer, context);
+
+        if focused || context.unfocused_selections {
+            self.draw_selections(framebuffer, context);
+        }
 
         if focused {
             self.draw_status_bar(framebuffer, context);

@@ -36,7 +36,7 @@ impl FileBox {
 
         let directories = self.combobox.get().position(&SharedString::from("/")).len();
         let complete_path = match directories {
-            0 => format_vector!("./{}", path),
+            0 => format_shared!("./{}", path),
             _other => path.clone(),
         };
 

@@ -1,4 +1,4 @@
-use sfml::graphics::Color;
+use sfml::graphics::{ Color, TextStyle };
 use context::Context;
 use kami::TokenType;
 
@@ -48,6 +48,22 @@ impl EditorToken {
             TokenType::Float(..) => return context.theme.panel.float,
             TokenType::Invalid(..) => return context.theme.panel.error,
             TokenType::Ignored => return context.theme.panel.text,
+        }
+    }
+
+    pub fn get_style(&self, context: &Context) -> TextStyle {
+        match self.token_type {
+            TokenType::Comment(..) => return context.theme.panel.comment_style,
+            TokenType::Operator(..) => return context.theme.panel.operator_style,
+            TokenType::Keyword(..) => return context.theme.panel.keyword_style,
+            TokenType::Identifier(..) => return context.theme.panel.identifier_style,
+            TokenType::TypeIdentifier(..) => return context.theme.panel.type_identifier_style,
+            TokenType::Character(..) => return context.theme.panel.character_style,
+            TokenType::String(..) => return context.theme.panel.string_style,
+            TokenType::Integer(..) => return context.theme.panel.integer_style,
+            TokenType::Float(..) => return context.theme.panel.float_style,
+            TokenType::Invalid(..) => return context.theme.panel.error_style,
+            TokenType::Ignored => return context.theme.panel.text_style,
         }
     }
 }

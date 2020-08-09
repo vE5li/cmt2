@@ -125,11 +125,32 @@ impl<'i> Instance<'i> {
                                         continue 'execute;
                                     },
 
+                                    Action::ToggleHighlighting => {
+                                        self.context.toggle_highlighting();
+                                        self.update_panels();
+                                        add_character = false;
+                                        continue 'execute;
+                                    },
+
                                     Action::TogglePreserveLines => {
                                         self.context.toggle_preserve_lines();
                                         add_character = false;
                                         continue 'execute;
                                     },
+
+                                    Action::ToggleUnfocusedSelections => {
+                                        self.context.toggle_unfocused_selections();
+                                        self.update_panels();
+                                        add_character = false;
+                                        continue 'execute;
+                                    }
+
+                                    Action::ToggleFocusBar => {
+                                        self.context.toggle_focus_bar();
+                                        self.update_panels();
+                                        add_character = false;
+                                        continue 'execute;
+                                    }
 
                                     Action::MoveFocusLeft => {
                                         self.move_focus_left();
@@ -250,7 +271,9 @@ impl<'i> Instance<'i> {
     fn close_panel(&mut self) {
         if self.panels.len() > 1 {
             self.panels.remove(self.focused_panel);
-            self.focused_panel -= 1;
+            if self.focused_panel > 0 {
+                self.focused_panel -= 1;
+            }
             self.update_graphics();
         }
     }

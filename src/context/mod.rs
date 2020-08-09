@@ -1,3 +1,4 @@
+#[macro_use]
 mod theme;
 mod action;
 
@@ -9,44 +10,24 @@ use sfml::graphics::*;
 use sfml::system::{ SfBox, Vector2f };
 use sfml::window::Key;
 
-macro_rules! unpack_component {
-    ($color:expr, $index:expr, $component:expr) => ({
-        let component = confirm!($color.index(&integer!($index)));
-        let component = expect!(component, Message, string!("missing {} component", $component));
-        let component = unpack_integer!(component, Message, string!("invalid type for {} component", $component));
-        ensure!(component >= 0 && component <= 255, Message, string!("invalid range for {} component", $component));
-        component as u8
-    })
-}
-
-macro_rules! fetch_color {
-    ($colors:expr, $name:expr, $theme:expr, $field:ident) => ({
-        if let Some(color) = confirm!($colors.index(&identifier!($name))) {
-            let red = unpack_component!(color, 1, "red");
-            let green = unpack_component!(color, 2, "green");
-            let blue = unpack_component!(color, 3, "blue");
-            $theme.$field = Color::rgb(red, green, blue);
-        }
-    })
-}
-
 pub struct Context {
     save_file: SharedString,
     pub line_numbers: bool,
     pub font_size: usize,
     pub line_spacing: f32,
     pub character_spacing: f32,
-    pub width: usize,
-    pub height: usize,
     pub selection_gap: usize,
     pub append_lines: bool,
     pub status_bar: bool,
     pub highlighting: bool,
     pub bindings: Vec<(Binding, Action)>,
+    pub theme_name: SharedString,
     pub theme: Theme,
     pub font: SfBox<Font>,
     pub selection_lines: bool,
     pub preserve_lines: bool,
+    pub unfocused_selections: bool,
+    pub focus_bar: bool,
 }
 
 impl Context {
@@ -54,37 +35,32 @@ impl Context {
     pub fn new(save_file: SharedString, configuration_directory: &SharedString) -> Status<Self> {
         let mut configuration = map!();
         let mut bindings = Vec::new();
-        let mut theme = Theme::new();
+
+        let context_map = confirm!(read_map(&save_file));
+        let context_map = get_subtheme!(context_map, "context");
+        let line_numbers = get_boolean!(context_map, "line_numbers", true);
+        let font_size = get_integer!(context_map, "font_size", 14);
+        let line_spacing = get_float!(context_map, "line_spacing", 1.2);
+        let character_spacing = get_float!(context_map, "spacing", 0.625);
+        let selection_gap = get_integer!(context_map, "selection_gap", 8);
+        let append_lines = get_boolean!(context_map, "append_lines", false);
+        let status_bar = get_boolean!(context_map, "status_bar", true);
+        let highlighting = get_boolean!(context_map, "highlighting", true);
+        let selection_lines = get_boolean!(context_map, "selection_lines", true);
+        let preserve_lines = get_boolean!(context_map, "preserve_lines", true);
+        let unfocused_selections = get_boolean!(context_map, "show_selections", true);
+        let focus_bar = get_boolean!(context_map, "focus_bar", true);
+        let theme_name = get_string!(context_map, "theme", "default");
+
+        let theme_file = format_shared!("/home/.poet/themes/{}.data", &theme_name);
+        let theme_map = confirm!(read_map(&theme_file));
+        let mut theme = confirm!(Theme::from(&theme_map));
 
         for mut entry in confirm!(get_directory_entries(configuration_directory)) {
             entry.insert_str(0, configuration_directory);
             let file_map = confirm!(read_map(&entry));
             configuration = confirm!(configuration.merge(&file_map));
         }
-
-        //if let Some(colors) = confirm!(configuration.index(&keyword!("colors"))) {
-        //    fetch_color!(colors, "border", theme, border_color);
-        //    fetch_color!(colors, "panel", theme, panel_color);
-        //    fetch_color!(colors, "text", theme, text_color);
-        //    fetch_color!(colors, "overlay", theme, overlay_color);
-        //    fetch_color!(colors, "comment", theme, comment_color);
-        //    fetch_color!(colors, "string", theme, string_color);
-        //    fetch_color!(colors, "character", theme, character_color);
-        //    fetch_color!(colors, "integer", theme, integer_color);
-        //    fetch_color!(colors, "float", theme, float_color);
-        //    fetch_color!(colors, "keyword", theme, keyword_color);
-        //    fetch_color!(colors, "operator", theme, operator_color);
-        //    fetch_color!(colors, "identifier", theme, identifier_color);
-        //    fetch_color!(colors, "type_identifier", theme, type_identifier_color);
-        //    fetch_color!(colors, "error", theme, error_color);
-        //    fetch_color!(colors, "selection", theme, selection_color);
-        //    fetch_color!(colors, "new_selection", theme, new_selection_color);
-        //    fetch_color!(colors, "dialogue", theme, dialogue_color);
-        //    fetch_color!(colors, "dialogue_focused", theme, dialogue_focused_color);
-        //    // fetch element radius
-        //    // fetch panel radius
-        //    // fetch panel gap
-        //}
 
         let bindings_map = confirm!(configuration.index(&keyword!("bindings"))).unwrap();
         let bindings_map = unpack_map!(&bindings_map);
@@ -145,21 +121,22 @@ impl Context {
 
         success!(Self {
             save_file: save_file,
-            line_numbers: true,
-            font_size: 14,
-            line_spacing: 1.2,
-            character_spacing: 0.625,
-            width: 150,
-            height: 50,
-            selection_gap: 8,
-            append_lines: false,
-            status_bar: true,
-            highlighting: true,
+            line_numbers: line_numbers,
+            font_size: font_size,
+            line_spacing: line_spacing,
+            character_spacing: character_spacing,
+            selection_gap: selection_gap,
+            append_lines: append_lines,
+            status_bar: status_bar,
+            highlighting: highlighting,
             bindings: bindings,
+            theme_name: theme_name,
             theme: theme,
             font: font,
-            selection_lines: true,
-            preserve_lines: true,
+            selection_lines: selection_lines,
+            preserve_lines: preserve_lines,
+            unfocused_selections: unfocused_selections,
+            focus_bar: focus_bar,
         })
     }
 
@@ -191,8 +168,20 @@ impl Context {
         self.selection_lines = !self.selection_lines;
     }
 
+    pub fn toggle_highlighting(&mut self) {
+        self.highlighting = !self.highlighting;
+    }
+
     pub fn toggle_preserve_lines(&mut self) {
         self.preserve_lines = !self.preserve_lines;
+    }
+
+    pub fn toggle_unfocused_selections(&mut self) {
+        self.unfocused_selections = !self.unfocused_selections;
+    }
+
+    pub fn toggle_focus_bar(&mut self) {
+        self.focus_bar = !self.focus_bar;
     }
 
     pub fn safe(&self) {

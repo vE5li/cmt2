@@ -7,7 +7,10 @@ pub enum Action {
     ToggleStatusBar,
     ToggleLineNumbers,
     ToggleSelectionLines,
+    ToggleHighlighting,
     TogglePreserveLines,
+    ToggleUnfocusedSelections,
+    ToggleFocusBar,
     MoveFocusLeft,
     MoveFocusRight,
 
@@ -65,6 +68,9 @@ impl Action {
             "status_bar" => return success!(Action::ToggleStatusBar),
             "line_numbers" => return success!(Action::ToggleLineNumbers),
             "selection_lines" => return success!(Action::ToggleSelectionLines),
+            "highlighting" => return success!(Action::ToggleHighlighting),
+            "unfocused_selections" => return success!(Action::ToggleUnfocusedSelections),
+            "focus_bar" => return success!(Action::ToggleFocusBar),
             "focus_left" => return success!(Action::MoveFocusLeft),
             "focus_right" => return success!(Action::MoveFocusRight),
 

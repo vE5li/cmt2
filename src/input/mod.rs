@@ -141,7 +141,7 @@ pub fn open_keyboard(device_name: &SharedString, sender: Sender<KeyEvent>) -> St
 
     let mut codes: HashMap<u8, Key> = HashMap::new();
     let mut composites: Vec<(Binding, Key)> = Vec::new();
-    let driver_file_path = format_vector!("/home/.poet/input/{}.data", device_name);
+    let driver_file_path = format_shared!("/home/.poet/input/{}.data", device_name);
     let driver_map = confirm!(read_map(&driver_file_path));
 
     let codes_map = confirm!(driver_map.index(&keyword!("codes"))).unwrap();
