@@ -9,64 +9,79 @@ pub struct RoundedRectangle {
 impl RoundedRectangle {
 
     pub fn new(width: f32, height: f32, top_left_radius: f32, top_right_radius: f32, bottom_right_radius: f32, bottom_left_radius: f32) -> Self {
-
-        let mut x = 0.0;
-        let mut y = 0.0;
+        let quarter_rotation = std::f32::consts::PI / 2.0;
         let mut points = Vec::new();
 
-        let top_right_points = 3 + (top_right_radius * 0.5) as usize;
-        for index in 0..top_right_points {
-            //x += top_right_radius / top_right_points as f32;
-
-            x = match index == top_right_points - 1 {
-                true => top_right_radius,
-                false => x + top_right_radius / top_right_points as f32,
-            };
-
-            y = (top_right_radius * top_right_radius - x * x).sqrt();
-            points.push(Vector2f::new(x + width - top_right_radius, top_right_radius - y));
+        if top_left_radius < 1.0 {
+            points.push(Vector2f::new(0.0, 0.0));
+        } else {
+            let point_count = 3 + (top_left_radius * 0.5) as u32;
+            for index in 0..point_count {
+                if index == 0 {
+                    points.push(Vector2f::new(0.0, top_left_radius));
+                } else if index == point_count - 1 {
+                    points.push(Vector2f::new(top_left_radius, 0.0));
+                } else {
+                    let angle = quarter_rotation / (point_count - 1) as f32 * index as f32;
+                    let x = top_left_radius - top_left_radius * angle.cos();
+                    let y = top_left_radius - top_left_radius * angle.sin();
+                    points.push(Vector2f::new(x, y));
+                }
+            }
         }
 
-        y = 0.0;
-        let bottom_right_points = 3 + (bottom_right_radius * 0.5) as usize;
-        for index in 0..bottom_right_points {
-
-            y = match index == bottom_right_points - 1 {
-                true => bottom_right_radius,
-                false => y + bottom_right_radius / bottom_right_points as f32,
-            };
-
-            //y += bottom_right_radius / bottom_right_points as f32;
-            x = (bottom_right_radius * bottom_right_radius - y * y).sqrt();
-            points.push(Vector2f::new(width + x - bottom_right_radius, height - bottom_right_radius + y));
+        if top_right_radius < 1.0 {
+            points.push(Vector2f::new(width, 0.0));
+        } else {
+            let point_count = 3 + (top_right_radius * 0.5) as u32;
+            for index in 0..point_count {
+                if index == 0 {
+                    points.push(Vector2f::new(width - top_right_radius, 0.0));
+                } else if index == point_count - 1 {
+                    points.push(Vector2f::new(width, top_right_radius));
+                } else {
+                    let angle = quarter_rotation / (point_count - 1) as f32 * index as f32;
+                    let x = top_right_radius - top_right_radius * angle.cos();
+                    let y = top_right_radius - top_right_radius * angle.sin();
+                    points.push(Vector2f::new(width - x, y));
+                }
+            }
         }
 
-        x = 0.0;
-        let bottom_left_points = 3 + (bottom_left_radius * 0.5) as usize;
-        for index in 0..bottom_left_points {
-
-            x = match index == bottom_left_points - 1 {
-                true => bottom_left_radius,
-                false => x + bottom_left_radius / bottom_left_points as f32,
-            };
-
-            //x += bottom_left_radius / bottom_left_points as f32;
-            y = (bottom_left_radius * bottom_left_radius - x * x).sqrt();
-            points.push(Vector2f::new(bottom_left_radius - x, height - bottom_left_radius + y));
+        if bottom_right_radius < 1.0 {
+            points.push(Vector2f::new(width, height));
+        } else {
+            let point_count = 3 + (bottom_right_radius * 0.5) as u32;
+            for index in 0..point_count {
+                if index == 0 {
+                    points.push(Vector2f::new(width, height - bottom_right_radius));
+                } else if index == point_count - 1 {
+                    points.push(Vector2f::new(width - bottom_right_radius, height));
+                } else {
+                    let angle = quarter_rotation / (point_count - 1) as f32 * index as f32;
+                    let x = bottom_right_radius - bottom_right_radius * angle.cos();
+                    let y = bottom_right_radius - bottom_right_radius * angle.sin();
+                    points.push(Vector2f::new(width - x, height - y));
+                }
+            }
         }
 
-        y = 0.0;
-        let top_left_points = 3 + (top_left_radius * 0.5) as usize;
-        for index in 0..top_left_points {
-
-            y = match index == top_left_points - 1 {
-                true => top_left_radius,
-                false => y + top_left_radius / top_left_points as f32,
-            };
-
-            //y += top_left_radius / top_left_points as f32;
-            x = (top_left_radius * top_left_radius - y * y).sqrt();
-            points.push(Vector2f::new(top_left_radius - x, top_left_radius - y));
+        if bottom_left_radius < 1.0 {
+            points.push(Vector2f::new(0.0, height));
+        } else {
+            let point_count = 3 + (bottom_left_radius * 0.5) as u32;
+            for index in 0..point_count {
+                if index == 0 {
+                    points.push(Vector2f::new(bottom_left_radius, height));
+                } else if index == point_count - 1 {
+                    points.push(Vector2f::new(0.0, height - bottom_left_radius));
+                } else {
+                    let angle = quarter_rotation / (point_count - 1) as f32 * index as f32;
+                    let x = bottom_left_radius - bottom_left_radius * angle.cos();
+                    let y = bottom_left_radius - bottom_left_radius * angle.sin();
+                    points.push(Vector2f::new(x, height - y));
+                }
+            }
         }
 
         Self {
