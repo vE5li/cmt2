@@ -4,7 +4,7 @@ mod dialogues;
 mod token;
 
 use kami::*;
-use kami::tokenize::tokenize;
+use kami::tokenize::Tokenizer;
 //use parse::parse;
 
 use sfml::graphics::*;
@@ -34,7 +34,7 @@ pub fn length_from_position(position: Vec<Position>) -> usize {
 pub struct Editor {
     file_name: Option<SharedString>,
     text_buffer: SharedString,
-    compiler: Data,
+    tokenizer: Tokenizer,
     language: SharedString,
     tokens: Vec<EditorToken>,
     selections: Vec<Selection>,
@@ -57,7 +57,7 @@ impl Editor {
         success!(Self {
             file_name: None,
             text_buffer: SharedString::from("\n"),
-            compiler: confirm!(Self::load_language(&language)),
+            tokenizer: confirm!(Self::load_language(&language)),
             language: language,
             tokens: vec![EditorToken::new(TokenType::Operator(SharedString::from("newline")), 0, 1)],
             selections: vec![Selection::new(0, 1, 0)],
@@ -108,7 +108,7 @@ impl Editor {
         };
 
         //self.language = SharedString::from("none");
-        self.compiler = confirm!(Self::load_language(&self.language));
+        self.tokenizer = confirm!(Self::load_language(&self.language));
         return self.parse();
     }
 
@@ -119,13 +119,15 @@ impl Editor {
         self.mode = SelectionMode::Character;
     }
 
-    fn load_language(language: &SharedString) -> Status<Data> {
+    fn load_language(language: &SharedString) -> Status<Tokenizer> {
         let file_path = format_shared!("/home/.poet/languages/{}.data", language);
-        return read_map(&file_path);
+        let tokenizer_map = confirm!(read_map(&file_path));
+        return Tokenizer::new(&tokenizer_map);
     }
 
     pub fn parse(&mut self) -> Status<()> {
-        let (mut token_stream, registry, notes) = display!(tokenize(&self.compiler, self.text_buffer.clone(), self.file_name.clone(), true));
+
+        let (mut token_stream, registry, notes) = display!(self.tokenizer.tokenize(self.text_buffer.clone(), self.file_name.clone(), true));
         let mut tokens = Vec::new();
         let mut offset = 0;
 
@@ -651,9 +653,9 @@ impl Editor {
                         let new_language = self.set_language_dialogue.language_box.get();
                         match Self::load_language(&new_language) {
 
-                            Status::Success(compiler) => {
+                            Status::Success(tokenizer) => {
                                 self.language = new_language;
-                                self.compiler = compiler;
+                                self.tokenizer = tokenizer;
                                 self.parse();
                             },
 
