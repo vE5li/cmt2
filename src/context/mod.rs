@@ -2,7 +2,7 @@
 mod theme;
 mod action;
 
-use kami::*;
+use seamonkey::*;
 pub use self::theme::Theme;
 pub use self::action::Action;
 use input::{ Binding, KeyEvent, Modifiers, key_from_literal, is_modifier_key };
@@ -90,7 +90,7 @@ impl Context {
                                 _other => panic!(),
                             }
                         } else {
-                            return error!(Message, string!("only modifiers can be excluded in bindings"));
+                            return error!(string!("only modifiers can be excluded in bindings"));
                         }
 
                     } else {
@@ -108,7 +108,7 @@ impl Context {
                     }
                 }
 
-                let trigger = expect!(trigger, Message, string!("keybinding must have a trigger"));
+                let trigger = expect!(trigger, string!("keybinding must have a trigger"));
                 let new_binding = Binding::new(trigger, included, excluded);
                 match bindings.iter().position(|(binding, _): &(Binding, Action)| binding.length() <= new_binding.length()) {
                     Some(index) => bindings.insert(index, (new_binding, action)),

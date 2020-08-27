@@ -1,4 +1,4 @@
-use kami::*;
+use seamonkey::*;
 use context::{ Context, Action };
 use sfml::graphics::*;
 use sfml::system::Vector2f;

@@ -1,6 +1,6 @@
 use sfml::graphics::{ Color, TextStyle };
 use context::Context;
-use kami::TokenType;
+use seamonkey::TokenType;
 
 #[derive(Clone, Debug)]
 pub struct EditorToken {

@@ -1,4 +1,4 @@
-use kami::SharedString;
+use seamonkey::SharedString;
 use super::super::Selection;
 
 #[derive(Clone)]

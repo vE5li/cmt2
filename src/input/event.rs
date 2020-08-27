@@ -1,4 +1,4 @@
-use kami::*;
+use seamonkey::*;
 use sfml::window::Key;
 use super::Modifiers;
 

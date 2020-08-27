@@ -1,4 +1,4 @@
-extern crate dst6 as kami;
+extern crate seamonkey;
 extern crate sfml;
 
 mod graphics;
@@ -6,7 +6,7 @@ mod input;
 mod context;
 mod panel;
 
-use kami::*;
+use seamonkey::*;
 use sfml::{ graphics::*, system::*, window::* };
 
 use self::context::{ Context, Action };
@@ -198,7 +198,7 @@ impl<'i> Instance<'i> {
                         if add_character && unicode as u32 == 13 {
                             self.panels[self.focused_panel].add_character(&self.context, Character::from_char('\n'));
                             add_character = true;
-                        } else if add_character && unicode as u32 >= 32 && unicode as u32 <= 127 {
+                        } else if add_character && unicode as u32 >= 32 && unicode as u32 <= 126 {
                             self.panels[self.focused_panel].add_character(&self.context, Character::from_char(unicode));
                             add_character = true;
                         }

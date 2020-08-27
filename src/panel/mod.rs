@@ -1,7 +1,7 @@
 mod mode;
 mod editor;
 
-use kami::*;
+use seamonkey::*;
 use self::mode::PanelMode;
 use self::editor::Editor;
 use context::{ Context, Action };

@@ -3,8 +3,8 @@ mod elements;
 mod dialogues;
 mod token;
 
-use kami::*;
-use kami::tokenize::Tokenizer;
+use seamonkey::*;
+use seamonkey::tokenize::Tokenizer;
 //use parse::parse;
 
 use sfml::graphics::*;
@@ -100,7 +100,7 @@ impl Editor {
                 "cip" => SharedString::from("cipher"),
                 "asm" => SharedString::from("doofenshmirtz"),
                 "uni" => SharedString::from("entleman"),
-                "data" => SharedString::from("seamonkey"),
+                "data" => SharedString::from("seashell"),
                 _other => SharedString::from("none"),
             }
         } else {
@@ -127,17 +127,18 @@ impl Editor {
 
     pub fn parse(&mut self) -> Status<()> {
 
-        let (mut token_stream, registry, notes) = display!(self.tokenizer.tokenize(self.text_buffer.clone(), self.file_name.clone(), true));
-        let mut tokens = Vec::new();
-        let mut offset = 0;
+        //let (mut token_stream, registry, notes) = display!(self.tokenizer.tokenize(self.text_buffer.clone(), self.file_name.clone(), true));
+        //let mut tokens = Vec::new();
+        //let mut offset = 0;
 
-        for token in token_stream.into_iter() {
-            let length = length_from_position(token.position);
-            tokens.push(EditorToken::new(token.token_type, offset, length));
-            offset += length;
-        }
+        //for token in token_stream.into_iter() {
+        //    let length = length_from_position(token.position);
+        //    tokens.push(EditorToken::new(token.token_type, offset, length));
+        //    offset += length;
+        //}
 
-        self.tokens = tokens;
+        //self.tokens = tokens;
+        self.tokens = vec![EditorToken::new(TokenType::Comment(SharedString::new()), 0, 100000)];
         return success!(());
     }
 
@@ -962,13 +963,14 @@ impl Editor {
 
             DialogueMode::None => {
                 for index in 0..self.selections.len() {
-                    if self.mode.is_line() && context.preserve_lines {
-                        let newline_index = self.selections[index].index + self.selections[index].length;
-                        self.text_buffer.insert(newline_index, Character::from_char('\n'));
-                        self.advance_selections(index, 1);
-                    }
 
                     if self.selections[index].length > 1 {
+                        if self.mode.is_line() && context.preserve_lines {
+                            let newline_index = self.selections[index].index + self.selections[index].length;
+                            self.text_buffer.insert(newline_index, Character::from_char('\n'));
+                            self.advance_selections(index, 1);
+                        }
+
                         self.replace_selected_text(index, format_shared!("{}", character));
                         self.selections[index].reset();
                         self.selections[index].index += 1;

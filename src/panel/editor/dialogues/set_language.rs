@@ -1,4 +1,4 @@
-use kami::*;
+use seamonkey::*;
 use context::{ Context, Action };
 use sfml::graphics::*;
 use sfml::system::Vector2f;
@@ -12,7 +12,7 @@ impl SetLanguageDialogue {
 
     pub fn new() -> Self {
         Self {
-            language_box: ComboBox::new("language name", 0, false, false, vec![SharedString::from("cipher"), SharedString::from("c++"), SharedString::from("default"), SharedString::from("doofenshmirtz"), SharedString::from("entleman"), SharedString::from("none"), SharedString::from("rust"), SharedString::from("seamonkey")]),
+            language_box: ComboBox::new("language name", 0, false, false, vec![SharedString::from("cipher"), SharedString::from("c++"), SharedString::from("default"), SharedString::from("doofenshmirtz"), SharedString::from("entleman"), SharedString::from("none"), SharedString::from("rust"), SharedString::from("seashell")]),
         }
     }
 

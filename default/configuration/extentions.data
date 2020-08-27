@@ -1,6 +1,6 @@
 #extentions {
     none            [ #default ]
-    seamonkey       [ "data" ]
+    seashell        [ "data" ]
     cipher          [ "cip" ]
     doofenshmirtz   [ "asm" ]
     entleman        [ "uni" ]

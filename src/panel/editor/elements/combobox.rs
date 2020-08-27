@@ -1,4 +1,4 @@
-use kami::*;
+use seamonkey::*;
 use super::TextBox;
 use context::{ Context, Action };
 use sfml::graphics::*;

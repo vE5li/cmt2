@@ -1,12 +1,12 @@
 use sfml::graphics::{ Color, TextStyle };
-use kami::*;
+use seamonkey::*;
 
 macro_rules! get_component {
     ($color:expr, $index:expr, $component:expr) => ({
         let component = confirm!($color.index(&integer!($index)));
-        let component = expect!(component, Message, string!("missing {} component", $component));
-        let component = unpack_integer!(component, Message, string!("invalid type for {} component", $component));
-        ensure!(component >= 0 && component <= 255, Message, string!("invalid range for {} component", $component));
+        let component = expect!(component, string!("missing {} component", $component));
+        let component = unpack_integer!(component, string!("invalid type for {} component", $component));
+        ensure!(component >= 0 && component <= 255, string!("invalid range for {} component", $component));
         component as u8
     })
 }
@@ -72,7 +72,7 @@ macro_rules! get_style {
                     "regular" => TextStyle::REGULAR,
                     "bold" => TextStyle::BOLD,
                     "italic" => TextStyle::ITALIC,
-                    invalid => return error!(Message, string!("invalid text style {}", invalid)),
+                    invalid => return error!(string!("invalid text style {}", invalid)),
                 }
             },
 

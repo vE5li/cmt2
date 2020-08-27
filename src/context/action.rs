@@ -1,4 +1,4 @@
-use kami::*;
+use seamonkey::*;
 
 #[derive(Copy, Clone, Debug, PartialEq, Hash)]
 pub enum Action {
@@ -118,7 +118,7 @@ impl Action {
             "cut" => return success!(Action::Cut),
             "rotate" => return success!(Action::Rotate),
 
-            invalid => return error!(Message, string!("invalid action {}", invalid)),
+            invalid => return error!(string!("invalid action {}", invalid)),
         }
     }
 }

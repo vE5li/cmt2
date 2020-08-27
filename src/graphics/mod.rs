@@ -2,7 +2,7 @@ mod rounded;
 
 pub use self::rounded::RoundedRectangle;
 
-use kami::SharedString;
+use seamonkey::SharedString;
 use sfml::system::Vector2f;
 use sfml::graphics::*;
 
