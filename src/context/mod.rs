@@ -2,13 +2,19 @@
 mod theme;
 mod action;
 
+use sfml::SfBox;
+use sfml::graphics::*;
+use sfml::system::{ Vector2f };
+use sfml::window::Key;
+
 use seamonkey::*;
+use input::{ Binding, KeyEvent, Modifiers, key_from_literal, is_modifier_key };
+
 pub use self::theme::Theme;
 pub use self::action::Action;
-use input::{ Binding, KeyEvent, Modifiers, key_from_literal, is_modifier_key };
-use sfml::graphics::*;
-use sfml::system::{ SfBox, Vector2f };
-use sfml::window::Key;
+
+const SMALLEST_FONT_SIZE: usize = 5;
+const BIGGEST_FONT_SIZE: usize = 50;
 
 pub struct Context {
     save_file: SharedString,
@@ -32,9 +38,10 @@ pub struct Context {
 
 impl Context {
 
-    pub fn new(save_file: SharedString, configuration_directory: &SharedString) -> Status<Self> {
+    pub fn new(configuration_directory: &SharedString) -> Status<Self> {
         let mut configuration = map!();
         let mut bindings = Vec::new();
+        let save_file = format_shared!("{}context.data", configuration_directory);
 
         let context_map = confirm!(read_map(&save_file));
         let context_map = get_subtheme!(context_map, "context");
@@ -52,20 +59,23 @@ impl Context {
         let focus_bar = get_boolean!(context_map, "focus_bar", true);
         let theme_name = get_string!(context_map, "theme", "default");
 
-        let theme_file = format_shared!("/home/.poet/themes/{}.data", &theme_name);
+        let theme_file = format_shared!("/home/.config/poet/themes/{}.data", &theme_name);
         let theme_map = confirm!(read_map(&theme_file));
         let mut theme = confirm!(Theme::from(&theme_map));
 
-        for mut entry in confirm!(get_directory_entries(configuration_directory)) {
-            entry.insert_str(0, configuration_directory);
-            let file_map = confirm!(read_map(&entry));
-            configuration = confirm!(configuration.merge(&file_map));
-        }
+        let bindings_file = format_shared!("{}bindings.data", configuration_directory);
+        let extentions_file = format_shared!("{}extentions.data", configuration_directory);
 
-        let bindings_map = confirm!(configuration.index(&keyword!("bindings"))).unwrap();
-        let bindings_map = unpack_map!(&bindings_map);
+        let bindings_data = confirm!(read_map(&bindings_file));
+        let extentions_data = confirm!(read_map(&extentions_file));
 
-        for (key, value) in bindings_map.iter() {
+        configuration = confirm!(configuration.merge(&bindings_data));
+        configuration = confirm!(configuration.merge(&extentions_data));
+
+        let bindings_entry = confirm!(configuration.index(&keyword!("bindings"))).unwrap();
+        let bindings_entry = unpack_map!(&bindings_entry);
+
+        for (key, value) in bindings_entry.iter() {
             let action = confirm!(Action::from_literal(&unpack_literal!(key)));
 
             let bindings_list = unpack_list!(value);
@@ -81,12 +91,12 @@ impl Context {
                     let key = confirm!(key_from_literal(&unpack_literal!(binding_key)));
 
                     if binding_key.is_keyword() {
-                        if is_modifier_key(&key) {
+                        if is_modifier_key(key) {
                             match key {
-                                Key::LShift => excluded.shift = true,
-                                Key::LControl => excluded.control = true,
-                                Key::LAlt => excluded.alt = true,
-                                Key::LSystem => excluded.system = true,
+                                Key::LSHIFT => excluded.shift = true,
+                                Key::LCONTROL => excluded.control = true,
+                                Key::LALT => excluded.alt = true,
+                                Key::LSYSTEM => excluded.system = true,
                                 _other => panic!(),
                             }
                         } else {
@@ -94,12 +104,12 @@ impl Context {
                         }
 
                     } else {
-                        if is_modifier_key(&key) {
+                        if is_modifier_key(key) {
                             match key {
-                                Key::LShift => included.shift = true,
-                                Key::LControl => included.control = true,
-                                Key::LAlt => included.alt = true,
-                                Key::LSystem => included.system = true,
+                                Key::LSHIFT => included.shift = true,
+                                Key::LCONTROL => included.control = true,
+                                Key::LALT => included.alt = true,
+                                Key::LSYSTEM => included.system = true,
                                 _other => panic!(),
                             }
                         } else {
@@ -117,7 +127,7 @@ impl Context {
             }
         }
 
-        let font = Font::from_file("/home/.poet/fonts/monaco.ttf").expect("failed to load font");
+        let font = Font::from_file("/home/.config/poet/fonts/monaco.ttf").expect("failed to load font");
 
         success!(Self {
             save_file: save_file,
@@ -182,6 +192,18 @@ impl Context {
 
     pub fn toggle_focus_bar(&mut self) {
         self.focus_bar = !self.focus_bar;
+    }
+
+    pub fn zoom_in(&mut self) {
+        if self.font_size < BIGGEST_FONT_SIZE {
+            self.font_size += 1;
+        }
+    }
+
+    pub fn zoom_out(&mut self) {
+        if self.font_size > SMALLEST_FONT_SIZE {
+            self.font_size -= 1;
+        }
     }
 
     pub fn safe(&self) {

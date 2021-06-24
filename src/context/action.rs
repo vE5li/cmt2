@@ -11,8 +11,6 @@ pub enum Action {
     TogglePreserveLines,
     ToggleUnfocusedSelections,
     ToggleFocusBar,
-    MoveFocusLeft,
-    MoveFocusRight,
 
     CharacterMode,
     TokenMode,
@@ -39,11 +37,9 @@ pub enum Action {
 
     ZoomIn,
     ZoomOut,
-    ZoomInPanel,
-    ZoomOutPanel,
 
     NewEditor,
-    ClosePanel,
+    CloseWindow,
 
     ExtendLeft,
     ExtendRight,
@@ -71,8 +67,6 @@ impl Action {
             "highlighting" => return success!(Action::ToggleHighlighting),
             "unfocused_selections" => return success!(Action::ToggleUnfocusedSelections),
             "focus_bar" => return success!(Action::ToggleFocusBar),
-            "focus_left" => return success!(Action::MoveFocusLeft),
-            "focus_right" => return success!(Action::MoveFocusRight),
 
             "character_mode" => return success!(Action::CharacterMode),
             "token_mode" => return success!(Action::TokenMode),
@@ -95,11 +89,9 @@ impl Action {
 
             "zoom_in" => return success!(Action::ZoomIn),
             "zoom_out" => return success!(Action::ZoomOut),
-            "zoom_in_panel" => return success!(Action::ZoomInPanel),
-            "zoom_out_panel" => return success!(Action::ZoomOutPanel),
 
             "new_editor" => return success!(Action::NewEditor),
-            "close_panel" => return success!(Action::ClosePanel),
+            "close_window" => return success!(Action::CloseWindow),
 
             "left" => return success!(Action::Left),
             "right" => return success!(Action::Right),

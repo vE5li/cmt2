@@ -5,8 +5,6 @@
     status_bar      [ [ alt 's' ] ]
     line_numbers    [ [ alt 'n' ] ]
     selection_lines [ [ alt 'l' ] ]
-    focus_left      [ [ control shift 'h' ] ]
-    focus_right     [ [ control shift 'l' ] ]
 
     character_mode  [ [ control 'd' ] ]
     token_mode      [ [ control 'f' ] ]
@@ -25,13 +23,11 @@
     remove          [ [ backspace ] ]
     clear           [ [ control backspace ] ]
 
-    zoom_in         [ [ control shift period ] ]
+    zoom_in         [ [ control hyphen ] ]
     zoom_out        [ [ control period ] ]
-    zoom_in_panel   [ [ control shift dash ] ]
-    zoom_out_panel  [ [ control dash ] ]
 
     new_editor      [ [ control 'p' ] ]
-    close_panel     [ [ control 'w' ] ]
+    close_window    [ [ control 'w' ] ]
 
     left            [ [ left ] ]
     right           [ [ right ] ]

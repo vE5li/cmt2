@@ -1,15 +1,15 @@
 #context {
-    line_numbers    $true
+    line_numbers    !true
     font_size       14
     line_spacing    1.2
     spacing         0.625
     selection_gap   8
-    append_lines    $false
-    status_bar      $false
-    highlighting    $true
-    selection_lines $true
-    preserve_lines  $true
+    append_lines    !false
+    status_bar      !false
+    highlighting    !true
+    selection_lines !true
+    preserve_lines  !true
     theme           "solarized"
-    show_selections $true
-    focus_bar       $true
+    show_selections !true
+    focus_bar       !true
 }

@@ -23,8 +23,6 @@
     identifier_style regular
     type_style      regular
     error_style     bold
-    radius          0.3
-    gap             0.6
     left_offset     0.4
     top_offset      0.4
     right_offset    0.4
