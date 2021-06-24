@@ -1,0 +1,57 @@
+#panel {
+    border          [ 0 33 44 ]
+    background      [ 34 34 34 ]
+    text            [ 187 187 187 ]
+    comment         [ 110 110 110 ]
+    string          [ 216 208 58 ]
+    character       [ 216 121 58 ]
+    integer         [ 42 161 152 ]
+    float           [ 42 161 152 ]
+    keyword         [ 55 163 198 ]
+    operator        [ 175 171 117 ]
+    identifier      [ 160 160 160 ]
+    type            [ 211 54 130 ]
+    error           [ 234 28 59 ]
+    text_style      regular
+    comment_style   italic
+    string_style    regular
+    character_style regular
+    integer_style   regular
+    float_style     regular
+    keyword_style   regular
+    operator_style  regular
+    identifier_style regular
+    type_style      regular
+    error_style     bold
+    radius          0.3
+    gap             0.6
+    left_offset     0.4
+    top_offset      0.4
+    right_offset    0.4
+}
+
+#line_number {
+    background      [ 60 60 60 ]
+    text            [ 34 34 34 ]
+    text_style      bold
+    text_offset     0.5
+    width           5.0
+    offset          0.0
+    gap             0.0
+    radius          0.0
+}
+
+#focus_bar {
+    background      [ 60 60 60 ]
+    height          0.5
+}
+
+#selection {
+    background      [ 80 80 80 ]
+    text            [ 34 34 34 ]
+    text_style      bold
+    new_background  [ 110 110 110 ]
+    new_text        [ 34 34 34 ]
+    line            [ 40 40 40 ]
+    radius          0.1
+}
