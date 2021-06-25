@@ -44,6 +44,11 @@ pub enum Action {
     NewEditor,
     CloseWindow,
 
+    PageUp,
+    PageDown,
+    ExtendPageUp,
+    ExtendPageDown,
+
     ExtendLeft,
     ExtendRight,
     ExtendUp,
@@ -98,6 +103,11 @@ impl Action {
 
             "new_editor" => return success!(Action::NewEditor),
             "close_window" => return success!(Action::CloseWindow),
+
+            "page_up" => return success!(Action::PageUp),
+            "page_down" => return success!(Action::PageDown),
+            "extend_page_up" => return success!(Action::ExtendPageUp),
+            "extend_page_down" => return success!(Action::ExtendPageDown),
 
             "left" => return success!(Action::Left),
             "right" => return success!(Action::Right),
