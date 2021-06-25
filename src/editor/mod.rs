@@ -324,7 +324,7 @@ impl Editor {
             SelectionMode::Token => {
             },
 
-            SelectionMode::Line => { // DONE
+            SelectionMode::Line => {
                 for index in self.selection_start()..self.selections.len() {
                     match self.is_selection_multiline(index) {
                         true => self.move_selection_to_first(index),
@@ -358,7 +358,7 @@ impl Editor {
             SelectionMode::Token => {
             },
 
-            SelectionMode::Line => { // DONE
+            SelectionMode::Line => {
                 for index in self.selection_start()..self.selections.len() {
                     match self.is_selection_multiline(index) {
                         true => self.move_selection_to_last(index),
@@ -379,7 +379,7 @@ impl Editor {
     fn extend_left(&mut self, context: &Context) {
         match self.mode {
 
-            SelectionMode::Character => { // DONE
+            SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
                     self.move_selection_left(index);
                     self.update_offset(index);
@@ -399,7 +399,7 @@ impl Editor {
     fn extend_right(&mut self, context: &Context) {
         match self.mode {
 
-            SelectionMode::Character => { // DONE
+            SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
                     self.move_selection_right(index);
                     self.update_offset(index);
@@ -419,17 +419,16 @@ impl Editor {
     fn extend_up(&mut self, context: &Context) {
         match self.mode {
 
-            SelectionMode::Character => { // DONE
+            SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
                     self.move_selection_up(index);
-                    self.update_offset(index);
                 }
             },
 
             SelectionMode::Token => {
             },
 
-            SelectionMode::Line => { // DONE
+            SelectionMode::Line => {
                 for index in self.selection_start()..self.selections.len() {
                     self.move_selection_up(index);
 
@@ -453,17 +452,16 @@ impl Editor {
     fn extend_down(&mut self, context: &Context) {
         match self.mode {
 
-            SelectionMode::Character => { // DONE
+            SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
                     self.move_selection_down(index);
-                    self.update_offset(index);
                 }
             },
 
             SelectionMode::Token => {
             },
 
-            SelectionMode::Line => { // DONE
+            SelectionMode::Line => {
                 for index in self.selection_start()..self.selections.len() {
                     self.move_selection_down(index);
 
@@ -487,7 +485,7 @@ impl Editor {
     fn move_to_end(&mut self) {
         match self.mode {
 
-            SelectionMode::Character => { // DONE
+            SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
                     self.move_selection_to_end(index);
                     self.update_offset(index);
@@ -508,7 +506,7 @@ impl Editor {
     fn move_to_start(&mut self, context: &Context) {
         match self.mode {
 
-            SelectionMode::Character => { // DONE (?)
+            SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
                     self.move_selection_to_start(context, index);
                     self.update_offset(index);
