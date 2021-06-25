@@ -138,14 +138,17 @@ impl Editor {
         }
 
         self.tokens = tokens;
-        //self.tokens = vec![EditorToken::new(TokenType::Identifier(SharedString::new()), 0, 100000)];
         return success!(());
     }
 
-    fn adjust_start_index(&self, context: &Context, buffer_index: usize, range: usize) -> usize {
+    fn last_buffer_index(&self) -> usize {
+        return self.text_buffer.len() - 1;
+    }
+
+    fn adjust_start_index(&self, context: &Context, disabled: bool, buffer_index: usize, range: usize) -> usize {
         let mut last_safe = buffer_index - range;
 
-        if context.start_at_symbol && !self.mode.is_line() {
+        if !disabled && context.start_at_symbol {
             for current_index in (buffer_index - range..buffer_index).rev() {
                 if !self.text_buffer[current_index].is_whitespace() {
                     last_safe = current_index;
@@ -163,7 +166,7 @@ impl Editor {
     }
 
     fn move_selection_right(&mut self, index: usize) {
-        if self.selections[index].primary_index < self.text_buffer.len() {
+        if self.selections[index].primary_index < self.last_buffer_index() {
             self.selections[index].primary_index += 1;
         }
     }
@@ -171,16 +174,16 @@ impl Editor {
     fn move_selection_down(&mut self, index: usize) {
         let primary_index = self.selections[index].primary_index;
 
-        for current_index in primary_index..self.text_buffer.len() {
+        for current_index in primary_index..self.last_buffer_index() {
             if self.text_buffer[current_index].is_newline() {
                 let line_length = self.line_length_from_index(current_index + 1);
-                let distance_to_offset = min(line_length - 1, self.selections[index].offset);
-                self.selections[index].primary_index = current_index + distance_to_offset + 1;
+                let distance_to_offset = min(line_length, self.selections[index].offset + 1);
+                self.selections[index].primary_index = current_index + distance_to_offset;
                 return;
             }
         }
 
-        self.selections[index].primary_index = self.text_buffer.len(); // TODO:
+        self.selections[index].primary_index = self.last_buffer_index();
     }
 
     fn move_selection_up(&mut self, index: usize) {
@@ -204,10 +207,10 @@ impl Editor {
         self.selections[index].primary_index += distance_to_newline - 1;
     }
 
-    fn move_selection_to_start(&mut self, context: &Context, index: usize) {
+    fn move_selection_to_start(&mut self, context: &Context, complete: bool, index: usize) {
         let primary_index = self.selections[index].primary_index;
         let distance_to_newline = self.reverse_line_length_from_index(primary_index);
-        let adjusted_index = self.adjust_start_index(context, primary_index, distance_to_newline - 1);
+        let adjusted_index = self.adjust_start_index(context, complete, primary_index, distance_to_newline - 1);
         self.selections[index].primary_index = adjusted_index;
     }
 
@@ -217,10 +220,10 @@ impl Editor {
         self.selections[index].secondary_index += distance_to_newline - 1;
     }
 
-    fn move_secondary_to_start(&mut self, context: &Context, index: usize) {
+    fn move_secondary_to_start(&mut self, context: &Context, complete: bool, index: usize) {
         let secondary_index = self.selections[index].secondary_index;
         let distance_to_newline = self.reverse_line_length_from_index(secondary_index);
-        let adjusted_index = self.adjust_start_index(context, secondary_index, distance_to_newline - 1);
+        let adjusted_index = self.adjust_start_index(context, complete, secondary_index, distance_to_newline - 1);
         self.selections[index].secondary_index = adjusted_index;
     }
 
@@ -258,6 +261,83 @@ impl Editor {
 
     fn selection_length(&self, index: usize) -> usize {
         return self.selection_biggest_index(index) - self.selection_smallest_index(index) + 1;
+    }
+
+    fn is_selection_newline(&self, index: usize) -> bool {
+        let buffer_index = self.selections[index].primary_index;
+        return self.text_buffer[buffer_index].is_newline();
+    }
+
+    fn append(&mut self) {
+        for index in self.selection_start()..self.selections.len() {
+            self.move_selection_to_last(index);
+
+            if !self.is_selection_newline(index) {
+                self.move_selection_right(index);
+            }
+
+            self.update_offset(index);
+            self.reset_selection(index);
+        }
+
+        self.mode = SelectionMode::Character;
+        //self.merge_overlapping_selections();
+    }
+
+    fn insert(&mut self) {
+        for index in self.selection_start()..self.selections.len() {
+            self.move_selection_to_first(index);
+            self.update_offset(index);
+            self.reset_selection(index);
+        }
+
+        self.mode = SelectionMode::Character;
+        //self.merge_overlapping_selections();
+    }
+
+    fn newline_up(&mut self, context: &Context) {
+        for index in self.selection_start()..self.selections.len() {
+            self.move_selection_to_first(index);
+            self.move_selection_to_start(context, true, index);
+            self.update_offset(index);
+            self.reset_selection(index);
+        }
+
+        self.mode = SelectionMode::Character;
+        //self.merge_overlapping_selections();
+
+        for index in self.selection_start()..self.selections.len() {
+            self.text_buffer.insert(self.selections[index].primary_index, Character::from_char('\n'));
+            //self.advance_selections(index, 1);
+        }
+
+        self.parse();
+    }
+
+    fn newline_down(&mut self) {
+        for index in self.selection_start()..self.selections.len() {
+            self.move_selection_to_last(index);
+            self.move_selection_to_end(index);
+        }
+
+        self.mode = SelectionMode::Character;
+        //self.merge_overlapping_selections();
+
+        for index in self.selection_start()..self.selections.len() {
+            let newline_index = self.selections[index].primary_index + 1;
+
+            match newline_index == self.last_buffer_index() {
+                true => self.text_buffer.push(Character::from_char('\n')),
+                false => self.text_buffer.insert(newline_index, Character::from_char('\n')),
+            }
+
+            //self.advance_selections(index, 1);
+            self.move_selection_right(index);
+            self.update_offset(index);
+            self.reset_selection(index);
+        }
+
+        self.parse();
     }
 
     fn move_left(&mut self, context: &Context) {
@@ -331,7 +411,7 @@ impl Editor {
                         false => self.move_selection_up(index),
                     }
                     self.reset_selection(index);
-                    self.move_secondary_to_start(context, index);
+                    self.move_secondary_to_start(context, true, index);
                     self.move_selection_to_end(index);
                     self.update_offset(index);
                 }
@@ -365,7 +445,7 @@ impl Editor {
                         false => self.move_selection_down(index),
                     }
                     self.reset_selection(index);
-                    self.move_secondary_to_start(context, index);
+                    self.move_secondary_to_start(context, true, index);
                     self.move_selection_to_end(index);
                     self.update_offset(index);
                 }
@@ -434,9 +514,9 @@ impl Editor {
 
                     if self.is_selection_inverted(index) {
                         self.move_secondary_to_end(index);
-                        self.move_selection_to_start(context, index);
+                        self.move_selection_to_start(context, true, index);
                     } else {
-                        self.move_secondary_to_start(context, index);
+                        self.move_secondary_to_start(context, true, index);
                         self.move_selection_to_end(index);
                     }
 
@@ -467,9 +547,9 @@ impl Editor {
 
                     if self.is_selection_inverted(index) {
                         self.move_secondary_to_end(index);
-                        self.move_selection_to_start(context, index);
+                        self.move_selection_to_start(context, true, index);
                     } else {
-                        self.move_secondary_to_start(context, index);
+                        self.move_secondary_to_start(context, true, index);
                         self.move_selection_to_end(index);
                     }
 
@@ -508,7 +588,7 @@ impl Editor {
 
             SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
-                    self.move_selection_to_start(context, index);
+                    self.move_selection_to_start(context, false, index);
                     self.update_offset(index);
                     self.reset_selection(index);
                 }
@@ -549,7 +629,7 @@ impl Editor {
 
             SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
-                    self.move_selection_to_start(context, index);
+                    self.move_selection_to_start(context, false, index);
                     self.update_offset(index);
                 }
             },
@@ -572,7 +652,7 @@ impl Editor {
     }
 
     fn line_count(&self) -> usize {
-        return self.line_from_index(self.text_buffer.len() - 1);
+        return self.line_from_index(self.last_buffer_index());
     }
 
     fn index_from_line(&self, line: usize) -> usize {
@@ -588,7 +668,7 @@ impl Editor {
             }
         }
 
-        panic!("line index {} was out of bounds", line);
+        return self.last_buffer_index();
     }
 
     fn line_from_index(&self, index: usize) -> usize {
@@ -604,7 +684,7 @@ impl Editor {
             }
         }
 
-        panic!("index {} was out of bounds", index);
+        return line_count;
     }
 
     fn offset_from_index(&self, index: usize) -> usize {
@@ -630,7 +710,7 @@ impl Editor {
             length += 1;
         }
 
-        panic!("index {} was out of bounds", index);
+        return length;
     }
 
     fn reverse_line_length_from_index(&self, index: usize) -> usize {
@@ -703,9 +783,9 @@ impl Editor {
             for index in 0..self.selections.len() {
                 if self.is_selection_inverted(index) {
                     self.move_secondary_to_end(index);
-                    self.move_selection_to_start(context, index);
+                    self.move_selection_to_start(context, true, index);
                 } else {
-                    self.move_secondary_to_start(context, index);
+                    self.move_secondary_to_start(context, true, index);
                     self.move_selection_to_end(index);
                 }
             }
@@ -896,6 +976,14 @@ impl Editor {
             Action::ExtendStart => handle_return!(self.extend_start(context)),
 
             Action::ExtendEnd => handle_return!(self.extend_end()),
+
+            Action::Append => handle_return!(self.append()),
+
+            Action::Insert => handle_return!(self.insert()),
+
+            Action::NewlineUp => handle_return!(self.newline_up(context)),
+
+            Action::NewlineDown => handle_return!(self.newline_down()),
 
             Action::AddSelection => handle_return!(self.add_selection()),
 
@@ -1236,7 +1324,7 @@ impl Editor {
                     draw_line = false;
                 }
 
-                if self.text_buffer[start_index + offset].is_newline() {
+                if start_index + offset < self.text_buffer.len() && self.text_buffer[start_index + offset].is_newline() {
                     top_offset += line_scaling;
                     draw_line = true;
                 }
@@ -1302,9 +1390,14 @@ impl Editor {
                     selection_text.set_fill_color(context.theme.selection.text);
                 }
 
+                let selection_text_character = match start_index + offset < self.text_buffer.len() {
+                    true => self.text_buffer[start_index + offset],
+                    false => Character::from_char(' '),
+                };
+
                 base.set_position(Vector2f::new(left_offset, top_offset));
                 selection_text.set_position(Vector2f::new(left_offset, top_offset));
-                selection_text.set_string(&format!("{}", self.text_buffer[start_index + offset]));
+                selection_text.set_string(&format!("{}", selection_text_character));
 
                 framebuffer.draw(base);
                 framebuffer.draw(&selection_text);

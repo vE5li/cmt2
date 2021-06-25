@@ -49,6 +49,12 @@ pub enum Action {
     ExtendPageUp,
     ExtendPageDown,
 
+    Insert,
+    Append,
+
+    NewlineUp,
+    NewlineDown,
+
     ExtendLeft,
     ExtendRight,
     ExtendUp,
@@ -108,6 +114,12 @@ impl Action {
             "page_down" => return success!(Action::PageDown),
             "extend_page_up" => return success!(Action::ExtendPageUp),
             "extend_page_down" => return success!(Action::ExtendPageDown),
+
+            "insert" => return success!(Action::Insert),
+            "append" => return success!(Action::Append),
+
+            "newline_up" => return success!(Action::NewlineUp),
+            "newline_down" => return success!(Action::NewlineDown),
 
             "left" => return success!(Action::Left),
             "right" => return success!(Action::Right),
