@@ -745,7 +745,7 @@ impl Editor {
     }
 
     fn is_selection_multiline(&self, index: usize) -> bool {
-        for current_index in self.selections[index].primary_index..self.selections[index].secondary_index {
+        for current_index in self.selection_smallest_index(index)..self.selection_biggest_index(index) {
             if self.text_buffer[current_index].is_newline() {
                 return true;
             }
