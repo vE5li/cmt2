@@ -308,7 +308,7 @@ impl Editor {
 
         for index in self.selection_start()..self.selections.len() {
             self.text_buffer.insert(self.selections[index].primary_index, Character::from_char('\n'));
-            //self.advance_selections(index, 1);
+            self.advance_selections(index, 1);
         }
 
         self.parse();
@@ -331,7 +331,7 @@ impl Editor {
                 false => self.text_buffer.insert(newline_index, Character::from_char('\n')),
             }
 
-            //self.advance_selections(index, 1);
+            self.advance_selections(index, 1);
             self.move_selection_right(index);
             self.update_offset(index);
             self.reset_selection(index);
@@ -1005,40 +1005,35 @@ impl Editor {
         }
 
         //match input {
-            //1 => self.append(), // submode ?
             //16 => self.pop_selection(),
             //3 => self.copy_selections(),
             //22 => self.paste_selections(),
             //24 => self.cut_selections(),
             //26 => self.undo(),
-            //20 => self.remove_selections(),
-            //126 => self.remove_selections(),
-            //65 => self.move_selection_up(context),
-            //66 => self.move_selection_down(context),
-            //67 => self.move_selection_right(context),
-            //68 => self.move_selection_left(context),
             //330 => self.remove(),
         //}
     }
 
-    fn unadvance_selections(&mut self, index: usize, offset: usize) {
-        panic!();
-        //let base_index = self.selections[index].index;
-        //for selection in self.selections.iter_mut() {
-        //    if selection.index > base_index {
-        //        selection.index -= offset;
-        //    }
-        //}
+    fn unadvance_selections(&mut self, reference_index: usize, offset: usize) {
+        let base_index = self.selections[reference_index].primary_index;
+
+        for index in 0..self.selections.len() {
+            if self.selections[index].primary_index > base_index {
+                self.selections[index].primary_index -= offset;
+                self.selections[index].secondary_index -= offset;
+            }
+        }
     }
 
-    fn advance_selections(&mut self, index: usize, offset: usize) {
-        panic!();
-        //let base_index = self.selections[index].index;
-        //for selection in self.selections.iter_mut() {
-        //    if selection.index > base_index {
-        //        selection.index += offset;
-        //    }
-        //}
+    fn advance_selections(&mut self, reference_index: usize, offset: usize) {
+        let base_index = self.selections[reference_index].primary_index;
+
+        for index in 0..self.selections.len() {
+            if self.selections[index].primary_index > base_index {
+                self.selections[index].primary_index += offset;
+                self.selections[index].secondary_index += offset;
+            }
+        }
     }
 
     fn get_selected_text(&self, index: usize) -> SharedString {
