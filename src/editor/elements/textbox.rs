@@ -25,7 +25,7 @@ impl TextBox {
         Self {
             description: SharedString::from(description),
             content: SharedString::from(" "),
-            selection: Selection::new(0, 1, 0),
+            selection: Selection::new(0, 0, 0),
             displacement: displacement,
         }
     }
@@ -34,7 +34,7 @@ impl TextBox {
         Self {
             description: SharedString::from(description),
             content: format_shared!("{} ", content),
-            selection: Selection::new(content.len(), 1, 0),
+            selection: Selection::new(content.len(), content.len(), 0),
             displacement: displacement,
         }
     }
@@ -46,40 +46,40 @@ impl TextBox {
     }
 
     pub fn set(&mut self, content: SharedString) {
-        self.selection.reset();
-        self.selection.index = content.len();
-        self.content = format_shared!("{} ", content);
+        //self.selection.reset();
+        //self.selection.index = content.len();
+        //self.content = format_shared!("{} ", content);
     }
 
     fn remove_character(&mut self) {
-        if self.selection.index > 0 && self.content.len() > 1 {
+        //if self.selection.index > 0 && self.content.len() > 1 {
 
-            // TODO: delete selected text if necessary
-            self.selection.reset();
-            self.selection.index -= 1;
-            self.content.remove(self.selection.index);
-        }
+        //    // TODO: delete selected text if necessary
+        //    self.selection.reset();
+        //    self.selection.index -= 1;
+        //    self.content.remove(self.selection.index);
+        //}
     }
 
     fn delete_character(&mut self) {
-        if self.selection.index < self.content.len() - 1 {
-            self.content.remove(self.selection.index);
-        }
+        //if self.selection.index < self.content.len() - 1 {
+        //    self.content.remove(self.selection.index);
+        //}
     }
 
     pub fn clear(&mut self) {
-        self.content = SharedString::from(" ");
-        self.selection.reset();
-        self.selection.index = 0;
+        //self.content = SharedString::from(" ");
+        //self.selection.reset();
+        //self.selection.index = 0;
     }
 
     pub fn add_character(&mut self, character: Character) {
 
         // TODO: delete selected text if necessary
-        self.selection.reset();
+        //self.selection.reset();
 
-        self.content.insert(self.selection.index, character);
-        self.selection.index += 1;
+        //self.content.insert(self.selection.index, character);
+        //self.selection.index += 1;
     }
 
     pub fn handle_action(&mut self, action: Action) -> (bool, Option<bool>) {
@@ -104,17 +104,17 @@ impl TextBox {
     }
 
     fn move_left(&mut self) {
-        if self.selection.index > 0 {
-            self.selection.reset();
-            self.selection.index -= 1;
-        }
+        //if self.selection.index > 0 {
+        //    self.selection.reset();
+        //    self.selection.index -= 1;
+        //}
     }
 
     fn move_right(&mut self) {
-        if self.selection.index < self.content.len() - 1 {
-            self.selection.reset();
-            self.selection.index += 1;
-        }
+        //if self.selection.index < self.content.len() - 1 {
+        //    self.selection.reset();
+        //    self.selection.index += 1;
+        //}
     }
 
     pub fn draw(&self, framebuffer: &mut RenderTexture, context: &Context, width: f32, offset: Vector2f, focused: bool) {

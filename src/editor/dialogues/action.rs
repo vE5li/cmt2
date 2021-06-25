@@ -12,8 +12,6 @@ impl ActionDialogue {
 
     pub fn new() -> Self {
         let actions = vec![
-            SharedString::from("focus_left"),
-            SharedString::from("focus_right"),
             SharedString::from("character_mode"),
             SharedString::from("token_mode"),
             SharedString::from("line_mode"),
@@ -29,8 +27,8 @@ impl ActionDialogue {
             SharedString::from("remove"),
             SharedString::from("delete"),
             SharedString::from("clear"),
-            SharedString::from("zoom_in_panel"),
-            SharedString::from("zoom_out_panel"),
+            SharedString::from("zoom_in"),
+            SharedString::from("zoom_out"),
             SharedString::from("left"),
             SharedString::from("right"),
             SharedString::from("up"),

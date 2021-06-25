@@ -7,6 +7,8 @@ use seamonkey::*;
 use seamonkey::tokenize::Tokenizer;
 //use parse::parse;
 
+use std::cmp::{ min, max };
+
 use sfml::graphics::*;
 use sfml::system::Vector2f;
 use context::{ Context, Action };
@@ -64,7 +66,7 @@ impl Editor {
             tokenizer: confirm!(Self::load_language(&language)),
             language: language,
             tokens: vec![EditorToken::new(TokenType::Operator(SharedString::from("newline")), 0, 1)],
-            selections: vec![Selection::new(0, 1, 0)],
+            selections: vec![Selection::new(0, 0, 0)],
             mode: SelectionMode::Character,
             adding_selection: false,
             size: Vector2f::new(0.0, 0.0),
@@ -112,7 +114,7 @@ impl Editor {
 
     pub fn reset(&mut self) {
         self.scroll = 0;
-        self.selections = vec![Selection::new(0, 1, 0)];
+        self.selections = vec![Selection::new(0, 0, 0)];
         self.adding_selection = false;
         self.mode = SelectionMode::Character;
     }
@@ -125,19 +127,137 @@ impl Editor {
 
     pub fn parse(&mut self) -> Status<()> {
 
-        //let (mut token_stream, registry, notes) = display!(self.tokenizer.tokenize(self.text_buffer.clone(), self.file_name.clone(), true));
-        //let mut tokens = Vec::new();
-        //let mut offset = 0;
+        let (mut token_stream, registry, notes) = display!(self.tokenizer.tokenize(self.text_buffer.clone(), self.file_name.clone(), true));
+        let mut tokens = Vec::new();
+        let mut offset = 0;
 
-        //for token in token_stream.into_iter() {
-        //    let length = length_from_position(token.position);
-        //    tokens.push(EditorToken::new(token.token_type, offset, length));
-        //    offset += length;
-        //}
+        for token in token_stream.into_iter() {
+            let length = length_from_position(token.position);
+            tokens.push(EditorToken::new(token.token_type, offset, length));
+            offset += length;
+        }
 
-        //self.tokens = tokens;
-        self.tokens = vec![EditorToken::new(TokenType::Identifier(SharedString::new()), 0, 100000)];
+        self.tokens = tokens;
+        //self.tokens = vec![EditorToken::new(TokenType::Identifier(SharedString::new()), 0, 100000)];
         return success!(());
+    }
+
+    fn adjust_start_index(&self, context: &Context, buffer_index: usize, range: usize) -> usize {
+        let mut last_safe = buffer_index - range;
+
+        if context.start_at_symbol && !self.mode.is_line() {
+            for current_index in (buffer_index - range..buffer_index).rev() {
+                if !self.text_buffer[current_index].is_whitespace() {
+                    last_safe = current_index;
+                }
+            }
+        }
+
+        return last_safe;
+    }
+
+    fn move_selection_left(&mut self, index: usize) {
+        if self.selections[index].primary_index > 0 {
+            self.selections[index].primary_index -= 1;
+        }
+    }
+
+    fn move_selection_right(&mut self, index: usize) {
+        if self.selections[index].primary_index < self.text_buffer.len() {
+            self.selections[index].primary_index += 1;
+        }
+    }
+
+    fn move_selection_down(&mut self, index: usize) {
+        let primary_index = self.selections[index].primary_index;
+
+        for current_index in primary_index..self.text_buffer.len() {
+            if self.text_buffer[current_index].is_newline() {
+                let line_length = self.line_length_from_index(current_index + 1);
+                let distance_to_offset = min(line_length - 1, self.selections[index].offset);
+                self.selections[index].primary_index = current_index + distance_to_offset + 1;
+                return;
+            }
+        }
+
+        self.selections[index].primary_index = self.text_buffer.len(); // TODO:
+    }
+
+    fn move_selection_up(&mut self, index: usize) {
+        let primary_index = self.selections[index].primary_index;
+
+        for current_index in (0..primary_index).rev() {
+            if self.text_buffer[current_index].is_newline() {
+                let line_length = self.reverse_line_length_from_index(current_index) - 1;
+                let distance_to_offset = line_length - min(line_length, self.selections[index].offset);
+                self.selections[index].primary_index = current_index - distance_to_offset;
+                return;
+            }
+        }
+
+        self.selections[index].primary_index = 0;
+    }
+
+    fn move_selection_to_end(&mut self, index: usize) {
+        let primary_index = self.selections[index].primary_index;
+        let distance_to_newline = self.line_length_from_index(primary_index);
+        self.selections[index].primary_index += distance_to_newline - 1;
+    }
+
+    fn move_selection_to_start(&mut self, context: &Context, index: usize) {
+        let primary_index = self.selections[index].primary_index;
+        let distance_to_newline = self.reverse_line_length_from_index(primary_index);
+        let adjusted_index = self.adjust_start_index(context, primary_index, distance_to_newline - 1);
+        self.selections[index].primary_index = adjusted_index;
+    }
+
+    fn move_secondary_to_end(&mut self, index: usize) {
+        let secondary_index = self.selections[index].secondary_index;
+        let distance_to_newline = self.line_length_from_index(secondary_index);
+        self.selections[index].secondary_index += distance_to_newline - 1;
+    }
+
+    fn move_secondary_to_start(&mut self, context: &Context, index: usize) {
+        let secondary_index = self.selections[index].secondary_index;
+        let distance_to_newline = self.reverse_line_length_from_index(secondary_index);
+        let adjusted_index = self.adjust_start_index(context, secondary_index, distance_to_newline - 1);
+        self.selections[index].secondary_index = adjusted_index;
+    }
+
+    fn selection_smallest_index(&self, index: usize) -> usize {
+        return min(self.selections[index].primary_index, self.selections[index].secondary_index);
+    }
+
+    fn selection_biggest_index(&self, index: usize) -> usize {
+        return max(self.selections[index].primary_index, self.selections[index].secondary_index);
+    }
+
+    fn move_selection_to_first(&mut self, index: usize) {
+        self.selections[index].primary_index = self.selection_smallest_index(index);
+    }
+
+    fn move_selection_to_last(&mut self, index: usize) {
+        self.selections[index].primary_index = self.selection_biggest_index(index);
+    }
+
+    fn is_selection_extended(&self, index: usize) -> bool {
+        return self.selections[index].primary_index != self.selections[index].secondary_index;
+    }
+
+    fn is_selection_inverted(&self, index: usize) -> bool {
+        return self.selections[index].primary_index < self.selections[index].secondary_index;
+    }
+
+    fn update_offset(&mut self, index: usize) {
+        self.selections[index].offset = self.offset_from_index(self.selections[index].primary_index);
+    }
+
+    fn reset_selection(&mut self, index: usize) {
+        self.selections[index].secondary_index = self.selections[index].primary_index;
+    }
+
+    fn selection_length(&self, index: usize) -> usize {
+        return self.selection_biggest_index(index) - self.selection_smallest_index(index) + 1;
     }
 
     fn move_left(&mut self, context: &Context) {
@@ -145,14 +265,12 @@ impl Editor {
 
             SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
-                    let previous_length = self.selections[index].length;
-                    self.selections[index].reset();
-
-                    if previous_length <= 1 && self.selections[index].index > 0 {
-                        self.selections[index].index -= 1;
+                    match self.is_selection_extended(index) {
+                        true => self.move_selection_to_first(index),
+                        false => self.move_selection_left(index),
                     }
-
-                    self.selections[index].offset = self.offset_from_index(self.selections[index].index);
+                    self.update_offset(index);
+                    self.reset_selection(index);
                 }
             },
 
@@ -171,17 +289,12 @@ impl Editor {
 
             SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
-                    let previous_length = self.selections[index].length;
-                    self.selections[index].reset();
-
-                    if previous_length > 1 {
-                        let new_index = self.selections[index].index + previous_length - 1;
-                        let offset = self.offset_from_index(new_index);
-                        self.selections[index].set_index_offset(new_index, offset);
-                    } else if self.selections[index].index < self.text_buffer.len() - 1 {
-                        self.selections[index].index += 1;
-                        self.selections[index].offset = self.offset_from_index(self.selections[index].index);
+                    match self.is_selection_extended(index) {
+                        true => self.move_selection_to_last(index),
+                        false => self.move_selection_right(index),
                     }
+                    self.update_offset(index);
+                    self.reset_selection(index);
                 }
             },
 
@@ -200,17 +313,11 @@ impl Editor {
 
             SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
-
-                    if !self.is_selection_multiline(index) {
-                        match self.line_from_index(self.selections[index].index) {
-                            0 => self.selections[index].set_index_offset(0, 0),
-                            line => self.selections[index].index = self.index_from_line_offset(line - 1, self.selections[index].offset),
-                        }
-                    } else {
-                        self.selections[index].offset = self.offset_from_index(self.selections[index].index);
+                    match self.is_selection_multiline(index) {
+                        true => self.move_selection_to_first(index),
+                        false => self.move_selection_up(index),
                     }
-
-                    self.selections[index].reset();
+                    self.reset_selection(index);
                 }
             },
 
@@ -219,17 +326,14 @@ impl Editor {
 
             SelectionMode::Line => { // DONE
                 for index in self.selection_start()..self.selections.len() {
-                    let first_index = self.selections[index].index;
-
-                    if self.is_selection_multiline(index) {
-                        let length = self.line_length_from_index(first_index);
-                        self.selections[index].length = length;
-                        self.selections[index].reversed = false;
-                    } else {
-                        skip_action_if!(first_index == 0);
-                        let length = self.reverse_line_length_from_index(first_index - 1);
-                        self.selections[index].set_index_length(first_index - length, length);
+                    match self.is_selection_multiline(index) {
+                        true => self.move_selection_to_first(index),
+                        false => self.move_selection_up(index),
                     }
+                    self.reset_selection(index);
+                    self.move_secondary_to_start(context, index);
+                    self.move_selection_to_end(index);
+                    self.update_offset(index);
                 }
             },
         }
@@ -243,24 +347,11 @@ impl Editor {
 
             SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
-
-                    if self.is_selection_multiline(index) {
-                        let selection_end = self.get_selection_end(index);
-                        let offset = self.offset_from_index(selection_end);
-                        self.selections[index].set_index_offset(selection_end, offset);
-                    } else {
-                        let line = self.line_from_index(self.selections[index].index);
-
-                        if line == self.line_count() {
-                            let new_index = self.text_buffer.len() - 1;
-                            let offset = self.offset_from_index(new_index);
-                            self.selections[index].set_index_offset(new_index, offset);
-                        } else {
-                            self.selections[index].index = self.index_from_line_offset(line + 1, self.selections[index].offset)
-                        }
+                    match self.is_selection_multiline(index) {
+                        true => self.move_selection_to_last(index),
+                        false => self.move_selection_down(index),
                     }
-
-                    self.selections[index].reset();
+                    self.reset_selection(index);
                 }
             },
 
@@ -269,18 +360,14 @@ impl Editor {
 
             SelectionMode::Line => { // DONE
                 for index in self.selection_start()..self.selections.len() {
-                    let last_index = self.selections[index].index + self.selections[index].length;
-
-                    if self.is_selection_multiline(index) {
-                        let length = self.reverse_line_length_from_index(last_index - 1);
-                        let new_index = last_index - length;
-                        self.selections[index].set_index_length(new_index, length);
-                        self.selections[index].reversed = false;
-                    } else {
-                        skip_action_if!(last_index == self.text_buffer.len());
-                        let length = self.line_length_from_index(last_index);
-                        self.selections[index].set_index_length(last_index, length);
+                    match self.is_selection_multiline(index) {
+                        true => self.move_selection_to_last(index),
+                        false => self.move_selection_down(index),
                     }
+                    self.reset_selection(index);
+                    self.move_secondary_to_start(context, index);
+                    self.move_selection_to_end(index);
+                    self.update_offset(index);
                 }
             },
         }
@@ -289,23 +376,13 @@ impl Editor {
         //self.check_selection_gap_down(context, self.selections.len() - 1);
     }
 
-    fn extend_selection_left(&mut self, context: &Context) {
+    fn extend_left(&mut self, context: &Context) {
         match self.mode {
 
             SelectionMode::Character => { // DONE
                 for index in self.selection_start()..self.selections.len() {
-                    if self.selections[index].reversed || self.selections[index].length == 1 {
-                        skip_action_if!(self.selections[index].index == 0);
-                        self.selections[index].index -= 1;
-                        self.selections[index].length += 1;
-                        self.selections[index].reversed = true;
-                        let offset = self.offset_from_index(self.selections[index].index);
-                        self.selections[index].offset = offset;
-                    } else {
-                        self.selections[index].length -= 1;
-                        let offset = self.offset_from_index(self.selections[index].index + self.selections[index].length - 1);
-                        self.selections[index].offset = offset;
-                    }
+                    self.move_selection_left(index);
+                    self.update_offset(index);
                 }
             },
 
@@ -319,28 +396,13 @@ impl Editor {
         //self.check_selection_gap_up(context, self.selections.len() - 1);
     }
 
-    fn extend_selection_right(&mut self, context: &Context) {
+    fn extend_right(&mut self, context: &Context) {
         match self.mode {
 
             SelectionMode::Character => { // DONE
                 for index in self.selection_start()..self.selections.len() {
-                    if self.selections[index].reversed {
-                        self.selections[index].index += 1;
-                        self.selections[index].length -= 1;
-
-                        if self.selections[index].length == 1 {
-                            self.selections[index].reversed = false;
-                        }
-
-                        let offset = self.offset_from_index(self.selections[index].index);
-                        self.selections[index].offset = offset;
-                    } else {
-                        skip_action_if!(self.selections[index].index + self.selections[index].length == self.text_buffer.len());
-                        self.selections[index].length += 1;
-
-                        let offset = self.offset_from_index(self.selections[index].index + self.selections[index].length - 1);
-                        self.selections[index].offset = offset;
-                    }
+                    self.move_selection_right(index);
+                    self.update_offset(index);
                 }
             },
 
@@ -354,45 +416,13 @@ impl Editor {
         //self.check_selection_gap_down(context, self.selections.len() - 1);
     }
 
-    fn extend_selection_up(&mut self, context: &Context) {
+    fn extend_up(&mut self, context: &Context) {
         match self.mode {
 
             SelectionMode::Character => { // DONE
                 for index in self.selection_start()..self.selections.len() {
-                    let first_line = self.line_from_index(self.selections[index].index);
-
-                    if self.selections[index].reversed || !self.is_selection_multiline(index) {
-                        if first_line == 0 {
-                            match self.selections[index].reversed {
-                                true => self.selections[index].length = self.selections[index].index + self.selections[index].length,
-                                false => self.selections[index].length = self.selections[index].index + 1,
-                            }
-                            self.selections[index].set_index_offset(0, 0);
-                        } else {
-                            let new_index = self.index_from_line_offset(first_line - 1, self.selections[index].offset);
-                            match self.selections[index].reversed {
-                                true => self.selections[index].length += self.selections[index].index - new_index,
-                                false => self.selections[index].length = self.selections[index].index - new_index + 1,
-                            }
-                            self.selections[index].index = new_index;
-                        }
-
-                        if self.selections[index].length > 1 {
-                            self.selections[index].reversed = true;
-                        }
-                    } else {
-                        let last_line_index = self.get_last_selected_line(index); // IMPROVE PERFORMANCE
-                        let last_line = self.line_from_index(last_line_index); // IMPROVE PERFORMANCE
-                        let new_index = self.index_from_line_offset(last_line - 1, self.selections[index].offset);
-
-                        if self.selections[index].index < new_index + 1 {
-                            self.selections[index].length -= self.selections[index].index + self.selections[index].length - new_index - 1;
-                        } else {
-                            self.selections[index].length = self.selections[index].index - new_index + 1;
-                            self.selections[index].index = new_index;
-                            self.selections[index].reversed = true;
-                        }
-                    }
+                    self.move_selection_up(index);
+                    self.update_offset(index);
                 }
             },
 
@@ -401,17 +431,17 @@ impl Editor {
 
             SelectionMode::Line => { // DONE
                 for index in self.selection_start()..self.selections.len() {
-                    if self.selections[index].reversed || !self.is_selection_multiline(index) {
-                        skip_action_if!(self.selections[index].index == 0);
-                        let distance_to_newline = self.reverse_line_length_from_index(self.selections[index].index - 1);
-                        self.selections[index].index -= distance_to_newline;
-                        self.selections[index].length += distance_to_newline;
-                        self.selections[index].reversed = true;
+                    self.move_selection_up(index);
+
+                    if self.is_selection_inverted(index) {
+                        self.move_secondary_to_end(index);
+                        self.move_selection_to_start(context, index);
                     } else {
-                        let last_index = self.selections[index].index + self.selections[index].length - 1;
-                        let distance_to_newline = self.reverse_line_length_from_index(last_index);
-                        self.selections[index].length -= distance_to_newline;
+                        self.move_secondary_to_start(context, index);
+                        self.move_selection_to_end(index);
                     }
+
+                    self.update_offset(index);
                 }
             },
         }
@@ -420,45 +450,13 @@ impl Editor {
         //self.check_selection_gap_up(context, self.selections.len() - 1);
     }
 
-    fn extend_selection_down(&mut self, context: &Context) {
+    fn extend_down(&mut self, context: &Context) {
         match self.mode {
 
             SelectionMode::Character => { // DONE
                 for index in self.selection_start()..self.selections.len() {
-                    if self.selections[index].reversed {
-                        let first_line = self.line_from_index(self.selections[index].index);
-                        let selection_end = self.selections[index].index + self.selections[index].length;
-                        let new_index = match first_line == self.line_count() {
-                            true => self.text_buffer.len(),
-                            false => self.index_from_line_offset(first_line + 1, self.selections[index].offset),
-                        };
-
-                        if new_index > selection_end {
-                            let new_length = new_index - selection_end + 1;
-                            self.selections[index].length = new_length + 1;
-                            self.selections[index].index = new_index - new_length;
-                            self.selections[index].reversed = false;
-                        } else {
-                            self.selections[index].length -= new_index - self.selections[index].index;
-                            self.selections[index].index = new_index;
-
-                            if self.selections[index].length == 1 {
-                                self.selections[index].reversed = false;
-                            }
-                        }
-                    } else {
-                        let last_line_index = self.get_last_selected_line(index); // IMPROVE PERFORMANCE
-                        let last_line = self.line_from_index(last_line_index); // IMPROVE PERFORMANCE
-
-                        if last_line == self.line_count() {
-                            let last_index = self.selections[index].index + self.selections[index].length;
-                            self.selections[index].offset = self.offset_from_index(self.text_buffer.len() - 1);
-                            self.selections[index].length += self.text_buffer.len() - last_index;
-                        } else {
-                            let new_index = self.index_from_line_offset(last_line + 1, self.selections[index].offset);
-                            self.selections[index].length += new_index - self.selections[index].index - self.selections[index].length + 1;
-                        }
-                    }
+                    self.move_selection_down(index);
+                    self.update_offset(index);
                 }
             },
 
@@ -467,21 +465,17 @@ impl Editor {
 
             SelectionMode::Line => { // DONE
                 for index in self.selection_start()..self.selections.len() {
-                    if self.selections[index].reversed {
-                        let new_index = self.selections[index].index;
-                        let line_length = self.line_length_from_index(new_index);
-                        self.selections[index].index += line_length;
-                        self.selections[index].length -= line_length;
+                    self.move_selection_down(index);
 
-                        if (!self.is_selection_multiline(index)) {
-                            self.selections[index].reversed = false;
-                        }
+                    if self.is_selection_inverted(index) {
+                        self.move_secondary_to_end(index);
+                        self.move_selection_to_start(context, index);
                     } else {
-                        let new_index = self.selections[index].index + self.selections[index].length;
-                        skip_action_if!(new_index == self.text_buffer.len());
-                        let line_length = self.line_length_from_index(new_index);
-                        self.selections[index].length += line_length;
+                        self.move_secondary_to_start(context, index);
+                        self.move_selection_to_end(index);
                     }
+
+                    self.update_offset(index);
                 }
             },
         }
@@ -493,18 +487,11 @@ impl Editor {
     fn move_to_end(&mut self) {
         match self.mode {
 
-            SelectionMode::Character => {
+            SelectionMode::Character => { // DONE
                 for index in self.selection_start()..self.selections.len() {
-
-                    if self.selections[index].reversed {
-
-                    } else {
-                        let mut new_index = self.get_last_selected_line(index);
-                        new_index += self.line_length_from_index(new_index) - 1;
-                        let new_offset = self.offset_from_index(new_index);
-                        self.selections[index].set_index_offset(new_index, new_offset);
-                        self.selections[index].reset();
-                    }
+                    self.move_selection_to_end(index);
+                    self.update_offset(index);
+                    self.reset_selection(index);
                 }
             },
 
@@ -518,16 +505,34 @@ impl Editor {
         //self.merge_overlapping_selections();
     }
 
-    fn move_to_start(&mut self) {
+    fn move_to_start(&mut self, context: &Context) {
+        match self.mode {
+
+            SelectionMode::Character => { // DONE (?)
+                for index in self.selection_start()..self.selections.len() {
+                    self.move_selection_to_start(context, index);
+                    self.update_offset(index);
+                    self.reset_selection(index);
+                }
+            },
+
+            SelectionMode::Token => {
+
+            },
+
+            SelectionMode::Line => return,
+        }
+
+        //self.merge_overlapping_selections();
+    }
+
+    fn extend_end(&mut self) {
         match self.mode {
 
             SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
-                    self.selections[index].reset();
-                    // move to the first character thats not a space?
-                    let line = self.line_from_index(self.selections[index].index);
-                    let new_index = self.index_from_line(line);
-                    self.selections[index].set_index_offset(new_index, 0);
+                    self.move_selection_to_end(index);
+                    self.update_offset(index);
                 }
             },
 
@@ -541,10 +546,24 @@ impl Editor {
         //self.merge_overlapping_selections();
     }
 
-    fn get_selection_end(&self, index: usize) -> usize {
-        let text_index = self.selections[index].index;
-        let length = self.selections[index].length;
-        return text_index + length - 1;
+    fn extend_start(&mut self, context: &Context) {
+        match self.mode {
+
+            SelectionMode::Character => {
+                for index in self.selection_start()..self.selections.len() {
+                    self.move_selection_to_start(context, index);
+                    self.update_offset(index);
+                }
+            },
+
+            SelectionMode::Token => {
+
+            },
+
+            SelectionMode::Line => return,
+        }
+
+        //self.merge_overlapping_selections();
     }
 
     fn selection_start(&self) -> usize {
@@ -568,30 +587,6 @@ impl Editor {
 
             if self.text_buffer[index].is_newline() {
                 line_count += 1;
-            }
-        }
-
-        panic!("line index {} was out of bounds", line);
-    }
-
-    fn index_from_line_offset(&self, line: usize, offset: usize) -> usize {
-        let mut line_count = 0;
-        let mut character_count = 0;
-
-        for index in 0..self.text_buffer.len() {
-            if line_count == line && character_count == offset {
-                return index;
-            }
-
-            if self.text_buffer[index].is_newline() {
-                if line_count == line {
-                    return index;
-                }
-
-                line_count += 1;
-                character_count = 0;
-            } else {
-                character_count += 1;
             }
         }
 
@@ -672,32 +667,12 @@ impl Editor {
     }
 
     fn is_selection_multiline(&self, index: usize) -> bool {
-        let mut current_index = self.selections[index].index;
-        let length = self.selections[index].length;
-
-        for _ in 0..(length - 1) {
+        for current_index in self.selections[index].primary_index..self.selections[index].secondary_index {
             if self.text_buffer[current_index].is_newline() {
                 return true;
             }
-            current_index += 1;
         }
-
         return false;
-    }
-
-    fn get_last_selected_line(&self, index: usize) -> usize {
-        let mut current_index = self.selections[index].index;
-        let length = self.selections[index].length;
-        let mut last = current_index;
-
-        for _ in 0..(length - 1) {
-            if self.text_buffer[current_index].is_newline() {
-                last = current_index + 1;
-            }
-            current_index += 1;
-        }
-
-        return last;
     }
 
     fn character_mode(&mut self) {
@@ -711,38 +686,64 @@ impl Editor {
             self.mode = SelectionMode::Token;
 
             // CAPTURE ENTIRE SELECTION AS WORDS
-            for index in 0..self.selections.len() {
-                self.selections[index].reset();
-                let token_index = self.token_from_index(self.selections[index].index);
-                let new_index = self.tokens[token_index].index;
-                let length = self.tokens[token_index].length;
-                self.selections[index].set_index_length(new_index, length);
-            }
+            //for index in 0..self.selections.len() {
+            //    self.selections[index].reset();
+            //    let token_index = self.token_from_index(self.selections[index].index);
+            //    let new_index = self.tokens[token_index].index;
+            //    let length = self.tokens[token_index].length;
+            //    self.selections[index].set_index_length(new_index, length);
+            //}
 
             //self.merge_overlapping_selections();
         }
     }
 
-    fn line_mode(&mut self) {
+    fn line_mode(&mut self, context: &Context) {
         if !self.mode.is_line() {
             self.mode = SelectionMode::Line;
 
             for index in 0..self.selections.len() {
-                self.selections[index].reset();
-                let line = self.line_from_index(self.selections[index].index);
-                let new_index = self.index_from_line(line);
-                let length = self.line_length_from_index(new_index);
-                self.selections[index].set_index_length(new_index, length);
+                if self.is_selection_inverted(index) {
+                    self.move_secondary_to_end(index);
+                    self.move_selection_to_start(context, index);
+                } else {
+                    self.move_secondary_to_start(context, index);
+                    self.move_selection_to_end(index);
+                }
             }
 
             //self.merge_overlapping_selections();
         }
     }
 
-    fn add_selection(&mut self, context: &Context) {
-        let selection = self.selections.last().unwrap().clone();
-        self.selections.push(selection);
+    fn add_selection(&mut self) {
+        let new_selection = self.selections.last().unwrap().clone();
+        self.selections.push(new_selection);
         self.adding_selection = true;
+    }
+
+    fn index_has_selection(&self, buffer_index: usize) -> bool {
+        for index in 0..self.selections.len() {
+            if buffer_index >= self.selection_smallest_index(index) && buffer_index <= self.selection_biggest_index(index) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    fn select_next(&mut self) {
+        let selection_buffer = self.get_selected_text(self.selections.len() - 1);
+        let found_positions = self.text_buffer.position(&selection_buffer);
+
+        for position in found_positions {
+            if !self.index_has_selection(position) {
+                let offset = self.offset_from_index(position);
+                let length = position + selection_buffer.len() - 1;
+                let selection = Selection::new(position, length, offset);
+                self.selections.push(selection);
+                return
+            }
+        }
     }
 
     pub fn handle_action(&mut self, context: &Context, action: Action) -> Status<bool> {
@@ -801,29 +802,30 @@ impl Editor {
                 if let Some(completed) = status {
 
                     if completed && self.selections.len() != 0 {
+                        panic!();
 
-                        let find = self.find_replace_dialogue.find_box.get();
-                        let replace = self.find_replace_dialogue.replace_box.get();
-                        self.text_buffer = self.text_buffer.replace(&find, &replace);
+                        //let find = self.find_replace_dialogue.find_box.get();
+                        //let replace = self.find_replace_dialogue.replace_box.get();
+                        //self.text_buffer = self.text_buffer.replace(&find, &replace);
 
-                        if find.len() > replace.len() {
+                        //if find.len() > replace.len() {
 
-                            let difference = find.len() - replace.len();
-                            for index in 0..self.selections.len() {
-                                self.selections[index].length -= difference;
-                                self.selections[index].index -= difference * index;
-                            }
-                        } else if find.len() < replace.len() {
+                        //    let difference = find.len() - replace.len();
+                        //    for index in 0..self.selections.len() {
+                        //        self.selections[index].length -= difference;
+                        //        self.selections[index].index -= difference * index;
+                        //    }
+                        //} else if find.len() < replace.len() {
 
-                            let difference = replace.len() - find.len();
-                            for index in 0..self.selections.len() {
-                                self.selections[index].length += difference;
-                                self.selections[index].index += difference * index;
-                            }
-                        }
+                        //    let difference = replace.len() - find.len();
+                        //    for index in 0..self.selections.len() {
+                        //        self.selections[index].length += difference;
+                        //        self.selections[index].index += difference * index;
+                        //    }
+                        //}
 
-                        self.character_mode();
-                        self.parse();
+                        //self.character_mode();
+                        //self.parse();
                     } else {
 
                         self.selections = selections.clone();
@@ -863,7 +865,7 @@ impl Editor {
 
             Action::TokenMode => handle_return!(self.token_mode()),
 
-            Action::LineMode => handle_return!(self.line_mode()),
+            Action::LineMode => handle_return!(self.line_mode(context)),
 
             Action::OpenFile => handle_return!(self.open_open_file_dialogue()),
 
@@ -881,19 +883,25 @@ impl Editor {
 
             Action::Right => handle_return!(self.move_right(context)),
 
-            Action::ExtendDown => handle_return!(self.extend_selection_down(context)),
+            Action::ExtendDown => handle_return!(self.extend_down(context)),
 
-            Action::ExtendUp => handle_return!(self.extend_selection_up(context)),
+            Action::ExtendUp => handle_return!(self.extend_up(context)),
 
-            Action::ExtendLeft => handle_return!(self.extend_selection_left(context)),
+            Action::ExtendLeft => handle_return!(self.extend_left(context)),
 
-            Action::ExtendRight => handle_return!(self.extend_selection_right(context)),
+            Action::ExtendRight => handle_return!(self.extend_right(context)),
 
-            Action::Start => handle_return!(self.move_to_start()),
+            Action::Start => handle_return!(self.move_to_start(context)),
 
             Action::End => handle_return!(self.move_to_end()),
 
-            Action::AddSelection => handle_return!(self.add_selection(context)),
+            Action::ExtendStart => handle_return!(self.extend_start(context)),
+
+            Action::ExtendEnd => handle_return!(self.extend_end()),
+
+            Action::AddSelection => handle_return!(self.add_selection()),
+
+            Action::SelectNext => handle_return!(self.select_next()),
 
             Action::Abort => handle_return!(self.drop_selections()),
 
@@ -928,74 +936,77 @@ impl Editor {
     }
 
     fn unadvance_selections(&mut self, index: usize, offset: usize) {
-        let base_index = self.selections[index].index;
-        for selection in self.selections.iter_mut() {
-            if selection.index > base_index {
-                selection.index -= offset;
-            }
-        }
+        panic!();
+        //let base_index = self.selections[index].index;
+        //for selection in self.selections.iter_mut() {
+        //    if selection.index > base_index {
+        //        selection.index -= offset;
+        //    }
+        //}
     }
 
     fn advance_selections(&mut self, index: usize, offset: usize) {
-        let base_index = self.selections[index].index;
-        for selection in self.selections.iter_mut() {
-            if selection.index > base_index {
-                selection.index += offset;
-            }
-        }
+        panic!();
+        //let base_index = self.selections[index].index;
+        //for selection in self.selections.iter_mut() {
+        //    if selection.index > base_index {
+        //        selection.index += offset;
+        //    }
+        //}
     }
 
     fn get_selected_text(&self, index: usize) -> SharedString {
-        let text_index = self.selections[index].index;
-        let length = self.selections[index].length;
-        return self.text_buffer.slice(text_index, text_index + length - 1);
+        let start = self.selection_smallest_index(index);
+        let end = self.selection_biggest_index(index);
+        return self.text_buffer.slice(start, end);
     }
 
     fn replace_selected_text(&mut self, index: usize, new_text: SharedString) {
+        panic!();
 
-        let current_length = self.selections[index].length;
-        let new_length = new_text.len();
+        //let current_length = self.selections[index].length;
+        //let new_length = new_text.len();
 
-        let mut current_index = self.selections[index].index;
-        let mut offset = 0;
+        //let mut current_index = self.selections[index].index;
+        //let mut offset = 0;
 
-        while offset < current_length && offset < new_length {
-            self.text_buffer[current_index] = new_text[offset];
-            current_index += 1;
-            offset += 1;
-        }
+        //while offset < current_length && offset < new_length {
+        //    self.text_buffer[current_index] = new_text[offset];
+        //    current_index += 1;
+        //    offset += 1;
+        //}
 
-        if current_length > new_length {
-            for _offset in offset..current_length {
-                self.text_buffer.remove(current_index);
-            }
+        //if current_length > new_length {
+        //    for _offset in offset..current_length {
+        //        self.text_buffer.remove(current_index);
+        //    }
 
-            self.unadvance_selections(index, current_length - new_length);
-        } else if current_length < new_length {
-            for offset in offset..new_length {
-                self.text_buffer.insert(current_index, new_text[offset]);
-                current_index += 1;
-            }
+        //    self.unadvance_selections(index, current_length - new_length);
+        //} else if current_length < new_length {
+        //    for offset in offset..new_length {
+        //        self.text_buffer.insert(current_index, new_text[offset]);
+        //        current_index += 1;
+        //    }
 
-            self.advance_selections(index, new_length - current_length);
-        }
+        //    self.advance_selections(index, new_length - current_length);
+        //}
     }
 
     fn rotate_selections(&mut self) {
-        if self.selections.len() > 1 {
-            let mut buffer = self.get_selected_text(self.selections.len() - 1);
+        //if self.selections.len() > 1 {
+        //    let mut buffer = self.get_selected_text(self.selections.len() - 1);
 
-            for index in 0..self.selections.len() {
-                let new_text = self.get_selected_text(index);
-                let new_length = buffer.len();
+        //    for index in 0..self.selections.len() {
+        //        let new_text = self.get_selected_text(index);
+        //        let new_length = buffer.len();
 
-                self.replace_selected_text(index, buffer);
-                self.selections[index].length = new_length;
-                buffer = new_text;
-            }
+        //        self.replace_selected_text(index, buffer);
+        //        self.selections[index].length = new_length;
+        //        buffer = new_text;
+        //    }
 
-            self.parse();
-        }
+        //    self.parse();
+        //}
     }
 
     fn update_find_replace(&mut self) {
@@ -1079,29 +1090,30 @@ impl Editor {
             DialogueMode::Error(..) => panic!(),
 
             DialogueMode::None => {
-                for index in 0..self.selections.len() {
+                panic!();
+                //for index in 0..self.selections.len() {
 
-                    if self.selections[index].length > 1 {
-                        if self.mode.is_line() && context.preserve_lines {
-                            let newline_index = self.selections[index].index + self.selections[index].length;
-                            self.text_buffer.insert(newline_index, Character::from_char('\n'));
-                            self.advance_selections(index, 1);
-                        }
+                //    if self.selections[index].length > 1 {
+                //        if self.mode.is_line() && context.preserve_lines {
+                //            let newline_index = self.selections[index].index + self.selections[index].length;
+                //            self.text_buffer.insert(newline_index, Character::from_char('\n'));
+                //            self.advance_selections(index, 1);
+                //        }
 
-                        self.replace_selected_text(index, format_shared!("{}", character));
-                        self.selections[index].reset();
-                        self.selections[index].index += 1;
-                        continue;
-                    }
+                //        self.replace_selected_text(index, format_shared!("{}", character));
+                //        self.selections[index].reset();
+                //        self.selections[index].index += 1;
+                //        continue;
+                //    }
 
-                    let current_index = self.selections[index].index;
-                    self.text_buffer.insert(current_index, character);
-                    self.selections[index].index += 1;
-                    self.advance_selections(index, 1);
-                }
+                //    let current_index = self.selections[index].index;
+                //    self.text_buffer.insert(current_index, character);
+                //    self.selections[index].index += 1;
+                //    self.advance_selections(index, 1);
+                //}
 
-                self.character_mode();
-                self.parse();
+                //self.character_mode();
+                //self.parse();
             },
         }
     }
@@ -1215,17 +1227,18 @@ impl Editor {
         selection_line.set_fill_color(context.theme.selection.line);
 
         for index in 0..self.selections.len() {
-            let mut top_offset = self.line_from_index(self.selections[index].index) as f32 * line_scaling + context.theme.panel.top_offset * context.font_size as f32;
+            let start_index = self.selection_smallest_index(index);
+            let mut top_offset = self.line_from_index(start_index) as f32 * line_scaling + context.theme.panel.top_offset * context.font_size as f32;
             let mut draw_line = true;
 
-            for offset in 0..self.selections[index].length {
+            for offset in 0..self.selection_length(index) {
                 if draw_line {
                     selection_line.set_position(Vector2f::new(left_offset, top_offset));
                     framebuffer.draw(&selection_line);
                     draw_line = false;
                 }
 
-                if self.text_buffer[self.selections[index].index + offset].is_newline() {
+                if self.text_buffer[start_index + offset].is_newline() {
                     top_offset += line_scaling;
                     draw_line = true;
                 }
@@ -1265,17 +1278,19 @@ impl Editor {
         selection_text.set_outline_thickness(0.0);
         selection_text.set_style(context.theme.selection.text_style);
 
-        for (index, selection) in self.selections.iter().enumerate() {
-            let mut top_offset = self.line_from_index(selection.index) as f32 * line_scaling + context.theme.panel.top_offset * context.font_size as f32;
-            let mut left_offset = self.offset_from_index(selection.index) as f32 * character_scaling + line_number_offset + context.theme.panel.left_offset * context.font_size as f32;
+        for index in 0..self.selections.len() {
+            let start_index = self.selection_smallest_index(index);
+            let mut top_offset = self.line_from_index(start_index) as f32 * line_scaling + context.theme.panel.top_offset * context.font_size as f32;
+            let mut left_offset = self.offset_from_index(start_index) as f32 * character_scaling + line_number_offset + context.theme.panel.left_offset * context.font_size as f32;
+            let selection_length = self.selection_length(index);
 
-            for offset in 0..selection.length {
+            for offset in 0..selection_length {
 
-                let mut base = if selection.length == 1 {
+                let mut base = if selection_length == 1 {
                     &mut single_selection_base
                 } else if offset == 0 {
                     &mut left_selection_base
-                } else if offset == selection.length - 1 {
+                } else if offset == selection_length - 1 {
                     &mut right_selection_base
                 } else {
                     &mut middle_selection_base
@@ -1291,12 +1306,12 @@ impl Editor {
 
                 base.set_position(Vector2f::new(left_offset, top_offset));
                 selection_text.set_position(Vector2f::new(left_offset, top_offset));
-                selection_text.set_string(&format!("{}", self.text_buffer[selection.index + offset]));
+                selection_text.set_string(&format!("{}", self.text_buffer[start_index + offset]));
 
                 framebuffer.draw(base);
                 framebuffer.draw(&selection_text);
 
-                if self.text_buffer[self.selections[index].index +  offset].is_newline() {
+                if self.text_buffer[start_index + offset].is_newline() {
                     left_offset = line_number_offset + context.theme.panel.left_offset * context.font_size as f32;
                     top_offset += line_scaling;
                 } else {

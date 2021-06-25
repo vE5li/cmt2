@@ -31,7 +31,7 @@ impl<'w> PoetWindow<'w> {
         surface.set_texture(unsafe { &*texture_pointer }, false);
 
         let mut editor = confirm!(Editor::new()); // remove mut
-        confirm!(editor.open_file(format_shared!("/home/maybe")));
+        confirm!(editor.open_file(format_shared!("/home/main.cip")));
 
         return success!(Self {
             size: size,

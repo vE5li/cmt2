@@ -34,6 +34,7 @@ pub struct Context {
     pub preserve_lines: bool,
     pub unfocused_selections: bool,
     pub focus_bar: bool,
+    pub start_at_symbol: bool,
 }
 
 impl Context {
@@ -57,6 +58,7 @@ impl Context {
         let preserve_lines = get_boolean!(context_map, "preserve_lines", true);
         let unfocused_selections = get_boolean!(context_map, "show_selections", true);
         let focus_bar = get_boolean!(context_map, "focus_bar", true);
+        let start_at_symbol = get_boolean!(context_map, "start_at_symbol", true);
         let theme_name = get_string!(context_map, "theme", "default");
 
         let theme_file = format_shared!("/home/.config/poet/themes/{}.data", &theme_name);
@@ -147,6 +149,7 @@ impl Context {
             preserve_lines: preserve_lines,
             unfocused_selections: unfocused_selections,
             focus_bar: focus_bar,
+            start_at_symbol: start_at_symbol,
         })
     }
 
@@ -192,6 +195,10 @@ impl Context {
 
     pub fn toggle_focus_bar(&mut self) {
         self.focus_bar = !self.focus_bar;
+    }
+
+    pub fn toggle_start_at_symbol(&mut self) {
+        self.start_at_symbol = !self.start_at_symbol;
     }
 
     pub fn zoom_in(&mut self) {

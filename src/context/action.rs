@@ -24,7 +24,10 @@ pub enum Action {
     Right,
     Start,
     End,
+    ExtendStart,
+    ExtendEnd,
     AddSelection,
+    SelectNext,
     FocusNext,
 
     Action,
@@ -76,7 +79,10 @@ impl Action {
             "find_replace" => return success!(Action::FindReplace),
             "start" => return success!(Action::Start),
             "end" => return success!(Action::End),
+            "extend_start" => return success!(Action::ExtendStart),
+            "extend_end" => return success!(Action::ExtendEnd),
             "add_selection" => return success!(Action::AddSelection),
+            "select_next" => return success!(Action::SelectNext),
             "focus_next" => return success!(Action::FocusNext),
 
             "action" => return success!(Action::Action),
