@@ -159,16 +159,20 @@ impl Editor {
         return last_safe;
     }
 
-    fn move_selection_left(&mut self, index: usize) {
+    fn move_selection_left(&mut self, index: usize) -> bool {
         if self.selections[index].primary_index > 0 {
             self.selections[index].primary_index -= 1;
+            return true;
         }
+        return false;
     }
 
-    fn move_selection_right(&mut self, index: usize) {
+    fn move_selection_right(&mut self, index: usize) -> bool {
         if self.selections[index].primary_index < self.last_buffer_index() {
             self.selections[index].primary_index += 1;
+            return true;
         }
+        return false;
     }
 
     fn move_selection_down(&mut self, index: usize) {
@@ -268,6 +272,58 @@ impl Editor {
         return self.text_buffer[buffer_index].is_newline();
     }
 
+    fn validate_text_buffer(&mut self) {
+        if self.text_buffer.is_empty() {
+            self.text_buffer.push(Character::from_char('\n'));
+        }
+    }
+
+    fn remove_text(&mut self, buffer_index: usize) {
+        self.text_buffer.remove(buffer_index);
+        self.validate_text_buffer();
+    }
+
+    fn remove_text_with_length(&mut self, buffer_index: usize, length: usize) {
+        for _ in 0..length {
+            self.text_buffer.remove(buffer_index);
+        }
+        self.validate_text_buffer();
+    }
+
+    fn clip_selection(&mut self, index: usize) {
+        self.selections[index].primary_index = min(self.selections[index].primary_index, self.last_buffer_index());
+    }
+
+    fn delete_selected(&mut self, index: usize) {
+
+        let buffer_index = self.selection_smallest_index(index);
+        let selection_length = self.selection_length(index);
+        self.remove_text_with_length(buffer_index, selection_length);
+
+        self.move_selection_to_first(index);
+        self.clip_selection(index);
+        self.update_offset(index);
+        self.reset_selection(index);
+
+        self.unadvance_selections(index, selection_length);
+    }
+
+    fn delete_selected_primary(&mut self, index: usize) {
+
+        let buffer_index = self.selections[index].primary_index;
+        self.remove_text(buffer_index);
+
+        self.clip_selection(index);
+        self.update_offset(index);
+        self.reset_selection(index);
+
+        self.unadvance_selections(index, 1);
+    }
+
+    fn is_selection_end_of_buffer(&self, index: usize) -> bool {
+        return self.selections[index].primary_index == self.last_buffer_index();
+    }
+
     fn append(&mut self) {
         for index in self.selection_start()..self.selections.len() {
             self.move_selection_to_last(index);
@@ -340,6 +396,119 @@ impl Editor {
         self.parse();
     }
 
+    fn remove(&mut self, context: &Context) {
+        match self.mode {
+
+            SelectionMode::Character => {
+                let mut reparse = false;
+
+                for index in self.selection_start()..self.selections.len() {
+                    if self.is_selection_extended(index) {
+                        self.delete_selected(index);
+                        reparse = true;
+                    } else if self.move_selection_left(index) {
+                        self.delete_selected_primary(index);
+                        reparse = true;
+                    }
+                }
+
+                if reparse {
+                    self.parse();
+                }
+            },
+
+            SelectionMode::Token => {
+            },
+
+            SelectionMode::Line => {
+                for index in self.selection_start()..self.selections.len() {
+                    self.delete_selected(index);
+                    self.move_secondary_to_start(context, true, index);
+                    self.move_selection_to_end(index);
+                }
+
+                self.parse();
+            },
+        }
+
+        //self.merge_overlapping_selections();
+        //self.check_selection_gap_up(context, self.selections.len() - 1);
+    }
+
+    fn delete(&mut self, context: &Context) {
+        match self.mode {
+
+            SelectionMode::Character => {
+                let mut reparse = false;
+
+                for index in self.selection_start()..self.selections.len() {
+                    if self.is_selection_extended(index) {
+                        self.delete_selected(index);
+                        reparse = true;
+                    } else if !self.is_selection_end_of_buffer(index) {
+                        self.delete_selected_primary(index);
+                        reparse = true;
+                    }
+                }
+
+                if reparse {
+                    self.parse();
+                }
+            },
+
+            SelectionMode::Token => {
+            },
+
+            SelectionMode::Line => {
+                for index in self.selection_start()..self.selections.len() {
+                    self.delete_selected(index);
+                    self.move_secondary_to_start(context, true, index);
+                    self.move_selection_to_end(index);
+                }
+
+                self.parse();
+            },
+        }
+
+        //self.merge_overlapping_selections();
+    }
+
+    fn delete_line(&mut self, context: &Context) {
+        match self.mode {
+
+            SelectionMode::Character => {
+                for index in self.selection_start()..self.selections.len() {
+                    if self.is_selection_inverted(index) {
+                        self.move_secondary_to_end(index);
+                        self.move_selection_to_start(context, true, index);
+                    } else {
+                        self.move_secondary_to_start(context, true, index);
+                        self.move_selection_to_end(index);
+                    }
+
+                    self.delete_selected(index);
+                }
+
+                self.parse();
+            },
+
+            SelectionMode::Token => {
+            },
+
+            SelectionMode::Line => {
+                for index in self.selection_start()..self.selections.len() {
+                    self.delete_selected(index);
+                    self.move_secondary_to_start(context, true, index);
+                    self.move_selection_to_end(index);
+                }
+
+                self.parse();
+            },
+        }
+
+        //self.merge_overlapping_selections();
+    }
+
     fn move_left(&mut self, context: &Context) {
         match self.mode {
 
@@ -347,7 +516,7 @@ impl Editor {
                 for index in self.selection_start()..self.selections.len() {
                     match self.is_selection_extended(index) {
                         true => self.move_selection_to_first(index),
-                        false => self.move_selection_left(index),
+                        false => { self.move_selection_left(index); },
                     }
                     self.update_offset(index);
                     self.reset_selection(index);
@@ -371,7 +540,7 @@ impl Editor {
                 for index in self.selection_start()..self.selections.len() {
                     match self.is_selection_extended(index) {
                         true => self.move_selection_to_last(index),
-                        false => self.move_selection_right(index),
+                        false => { self.move_selection_right(index); },
                     }
                     self.update_offset(index);
                     self.reset_selection(index);
@@ -795,9 +964,30 @@ impl Editor {
     }
 
     fn add_selection(&mut self) {
-        let new_selection = self.selections.last().unwrap().clone();
-        self.selections.push(new_selection);
-        self.adding_selection = true;
+        match self.mode {
+
+            SelectionMode::Character => {
+                let buffer_index = self.selection_biggest_index(self.selections.len() - 1) + 1;
+                let offset = self.offset_from_index(buffer_index);
+                let new_selection = Selection::new(buffer_index, buffer_index, offset);
+                self.selections.push(new_selection);
+                self.adding_selection = true;
+            },
+
+            SelectionMode::Token => {
+            },
+
+            SelectionMode::Line => {
+                let buffer_index = self.selection_biggest_index(self.selections.len() - 1) + 1;
+                let offset = self.offset_from_index(buffer_index);
+                let new_selection = Selection::new(buffer_index, buffer_index, offset);
+                self.selections.push(new_selection);
+                self.adding_selection = true;
+
+                self.reset_selection(self.selections.len() - 1);
+                self.move_selection_to_end(self.selections.len() - 1);
+            },
+        }
     }
 
     fn index_has_selection(&self, buffer_index: usize) -> bool {
@@ -991,6 +1181,12 @@ impl Editor {
 
             Action::Abort => handle_return!(self.drop_selections()),
 
+            Action::Remove => handle_return!(self.remove(context)),
+
+            Action::Delete => handle_return!(self.delete(context)),
+
+            Action::DeleteLine => handle_return!(self.delete_line(context)),
+
             Action::Rotate => handle_return!(self.rotate_selections()),
 
             Action::Confirm => {
@@ -1106,7 +1302,7 @@ impl Editor {
 
     fn drop_selections(&mut self) {
         for _index in 0..self.selections.len() - 1 {
-            self.selections.remove(0);
+            self.selections.remove(1);
         }
 
         // reset that selection

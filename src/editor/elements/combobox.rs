@@ -205,7 +205,7 @@ impl ComboBox {
 
             Action::Delete => self.reset_selection(),
 
-            Action::Clear => self.reset_selection(),
+            Action::DeleteLine => self.reset_selection(),
 
             Action::ExtendLeft => self.reset_selection(),
 

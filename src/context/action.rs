@@ -16,6 +16,7 @@ pub enum Action {
     TokenMode,
     LineMode,
     OpenFile,
+    SaveFile,
     SetLanguage,
     FindReplace,
     Down,
@@ -36,7 +37,7 @@ pub enum Action {
     Confirm,
     Remove,
     Delete,
-    Clear,
+    DeleteLine,
 
     ZoomIn,
     ZoomOut,
@@ -86,6 +87,7 @@ impl Action {
             "token_mode" => return success!(Action::TokenMode),
             "line_mode" => return success!(Action::LineMode),
             "open_file" => return success!(Action::OpenFile),
+            "save_file" => return success!(Action::SaveFile),
             "set_language" => return success!(Action::SetLanguage),
             "find_replace" => return success!(Action::FindReplace),
             "start" => return success!(Action::Start),
@@ -102,7 +104,7 @@ impl Action {
             "confirm" => return success!(Action::Confirm),
             "remove" => return success!(Action::Remove),
             "delete" => return success!(Action::Delete),
-            "clear" => return success!(Action::Clear),
+            "delete_line" => return success!(Action::DeleteLine),
 
             "zoom_in" => return success!(Action::ZoomIn),
             "zoom_out" => return success!(Action::ZoomOut),

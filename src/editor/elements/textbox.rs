@@ -97,7 +97,7 @@ impl TextBox {
 
             Action::Delete => handle_return_none!(self.delete_character()),
 
-            Action::Clear => handle_return_none!(self.clear()),
+            Action::DeleteLine => handle_return_none!(self.clear()),
 
             _other => return (false, None),
         }

@@ -79,7 +79,7 @@ impl FileBox {
 
             Action::Remove => self.check_directories(),
 
-            Action::Clear => self.check_directories(),
+            Action::DeleteLine => self.check_directories(),
 
             Action::Paste => self.check_directories(),
 
