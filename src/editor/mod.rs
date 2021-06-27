@@ -272,6 +272,18 @@ impl Editor {
         return self.text_buffer[buffer_index].is_newline();
     }
 
+    fn is_last_selected_newline(&self, index: usize) -> bool {
+        let last_index = self.selection_biggest_index(index);
+        return self.text_buffer[last_index].is_newline();
+    }
+
+    fn selection_exclude_last(&mut self, index: usize) {
+        match self.is_selection_inverted(index) {
+            true => self.selections[index].secondary_index -= 1,
+            false => self.selections[index].primary_index -= 1,
+        }
+    }
+
     fn validate_text_buffer(&mut self) {
         if self.text_buffer.is_empty() {
             self.text_buffer.push(Character::from_char('\n'));
@@ -292,6 +304,15 @@ impl Editor {
 
     fn clip_selection(&mut self, index: usize) {
         self.selections[index].primary_index = min(self.selections[index].primary_index, self.last_buffer_index());
+    }
+
+    fn set_selection_length(&mut self, index: usize, length: usize) {
+        let last_index = self.selection_smallest_index(index) + length - 1;
+
+        match self.is_selection_inverted(index) {
+            true => self.selections[index].secondary_index = last_index,
+            false => self.selections[index].primary_index = last_index,
+        }
     }
 
     fn delete_selected(&mut self, index: usize) {
@@ -1242,51 +1263,46 @@ impl Editor {
     }
 
     fn replace_selected_text(&mut self, index: usize, new_text: SharedString) {
-        panic!();
+        let current_length = self.selection_length(index);
+        let new_length = new_text.len();
 
-        //let current_length = self.selections[index].length;
-        //let new_length = new_text.len();
+        let mut current_index = self.selection_smallest_index(index);
+        let mut offset = 0;
 
-        //let mut current_index = self.selections[index].index;
-        //let mut offset = 0;
+        while offset < current_length && offset < new_length {
+            self.text_buffer[current_index] = new_text[offset];
+            current_index += 1;
+            offset += 1;
+        }
 
-        //while offset < current_length && offset < new_length {
-        //    self.text_buffer[current_index] = new_text[offset];
-        //    current_index += 1;
-        //    offset += 1;
-        //}
-
-        //if current_length > new_length {
-        //    for _offset in offset..current_length {
-        //        self.text_buffer.remove(current_index);
-        //    }
-
-        //    self.unadvance_selections(index, current_length - new_length);
-        //} else if current_length < new_length {
-        //    for offset in offset..new_length {
-        //        self.text_buffer.insert(current_index, new_text[offset]);
-        //        current_index += 1;
-        //    }
-
-        //    self.advance_selections(index, new_length - current_length);
-        //}
+        if current_length > new_length {
+            self.remove_text_with_length(current_index, current_length - offset);
+            self.unadvance_selections(index, current_length - new_length);
+        } else if current_length < new_length {
+            for offset in offset..new_length {
+                self.text_buffer.insert(current_index, new_text[offset]);
+                current_index += 1;
+            }
+            self.advance_selections(index, new_length - current_length);
+        }
     }
 
     fn rotate_selections(&mut self) {
-        //if self.selections.len() > 1 {
-        //    let mut buffer = self.get_selected_text(self.selections.len() - 1);
+        if self.selections.len() > 1 {
+            let mut buffer = self.get_selected_text(self.selections.len() - 1);
 
-        //    for index in 0..self.selections.len() {
-        //        let new_text = self.get_selected_text(index);
-        //        let new_length = buffer.len();
+            for index in 0..self.selections.len() {
+                let new_text = self.get_selected_text(index);
+                let new_length = buffer.len();
 
-        //        self.replace_selected_text(index, buffer);
-        //        self.selections[index].length = new_length;
-        //        buffer = new_text;
-        //    }
+                self.replace_selected_text(index, buffer);
+                self.set_selection_length(index, new_length);
+                self.update_offset(index);
+                buffer = new_text;
+            }
 
-        //    self.parse();
-        //}
+            self.parse();
+        }
     }
 
     fn update_find_replace(&mut self) {
@@ -1370,30 +1386,32 @@ impl Editor {
             DialogueMode::Error(..) => panic!(),
 
             DialogueMode::None => {
-                panic!();
-                //for index in 0..self.selections.len() {
+                for index in 0..self.selections.len() {
+                    if self.is_selection_extended(index) {
 
-                //    if self.selections[index].length > 1 {
-                //        if self.mode.is_line() && context.preserve_lines {
-                //            let newline_index = self.selections[index].index + self.selections[index].length;
-                //            self.text_buffer.insert(newline_index, Character::from_char('\n'));
-                //            self.advance_selections(index, 1);
-                //        }
+                        if context.preserve_lines && self.is_last_selected_newline(index) {
+                            self.selection_exclude_last(index);
+                        }
 
-                //        self.replace_selected_text(index, format_shared!("{}", character));
-                //        self.selections[index].reset();
-                //        self.selections[index].index += 1;
-                //        continue;
-                //    }
+                        self.replace_selected_text(index, format_shared!("{}", character));
+                        self.move_selection_to_first(index);
+                        self.move_selection_right(index);
+                        self.update_offset(index);
+                        self.reset_selection(index);
+                    } else {
+                        let buffer_index = self.selections[index].primary_index;
+                        self.text_buffer.insert(buffer_index, character);
 
-                //    let current_index = self.selections[index].index;
-                //    self.text_buffer.insert(current_index, character);
-                //    self.selections[index].index += 1;
-                //    self.advance_selections(index, 1);
-                //}
+                        self.move_selection_right(index);
+                        self.update_offset(index);
+                        self.reset_selection(index);
+                        self.advance_selections(index, 1);
+                    }
+                }
 
-                //self.character_mode();
-                //self.parse();
+                self.adding_selection = false;
+                self.character_mode();
+                self.parse();
             },
         }
     }

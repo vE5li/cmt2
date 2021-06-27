@@ -43,21 +43,21 @@ impl<'w> PoetWindow<'w> {
         });
     }
 
-    pub fn handle_input(&mut self, context: &Context) -> Option<CoreAction> {
+    pub fn handle_input(&mut self, context: &Context) -> Vec<CoreAction> {
+        let mut action_queue = Vec::new();
+        let mut handled = false;
 
         'handle: while let Some(event) = self.window.poll_event() {
             match event {
 
-                Event::Closed => return Some(CoreAction::CloseWindow),
+                Event::Closed => action_queue.push(CoreAction::CloseWindow),
 
                 Event::KeyPressed { code, shift, ctrl, alt, system } => {
                     if !is_modifier_key(code) {
                         let modifiers = Modifiers::from(shift, ctrl, alt, system);
-
-                        println!("modifiers: {:?}", modifiers);
-
                         let key_event = KeyEvent::new(code, modifiers);
 
+                        println!("modifiers: {:?}", modifiers);
                         println!("key event: {:?}", key_event);
 
                         for action in context.get_matching_actions(&key_event) {
@@ -66,22 +66,52 @@ impl<'w> PoetWindow<'w> {
 
                             if display!(self.editor.handle_action(context, action)) {
                                 self.rerender(context);
+                                handled = true;
                                 continue 'handle;
                             }
 
                             // put actions into a queue instead?
                             match action {
-                                Action::NewEditor => return Some(CoreAction::NewEditor),
-                                Action::ZoomIn => return Some(CoreAction::ZoomIn),
-                                Action::ZoomOut => return Some(CoreAction::ZoomOut),
-                                Action::Quit => return Some(CoreAction::Quit),
-                                Action::CloseWindow => self.close(),
+
+                                Action::NewEditor => {
+                                    action_queue.push(CoreAction::NewEditor);
+                                    handled = true;
+                                },
+
+                                Action::ZoomIn => {
+                                    action_queue.push(CoreAction::ZoomIn);
+                                    handled = true;
+                                },
+
+                                Action::ZoomOut => {
+                                    action_queue.push(CoreAction::ZoomOut);
+                                    handled = true;
+                                },
+
+                                Action::Quit => {
+                                    action_queue.push(CoreAction::Quit);
+                                    handled = true;
+                                },
+
+                                Action::CloseWindow => {
+                                    self.close();
+                                    handled = true;
+                                },
+
                                 unhandeled => {},
                             }
                         }
                     }
-                    //println!("code: {:?} shift: {} ctrl: {} alt: {} system: {}", code, shift, ctrl, alt, system);
-                    //return Some(CoreAction::NewEditor);
+                },
+
+                Event::TextEntered { unicode } => {
+                    if handled {
+                        handled = false;
+                        continue 'handle;
+                    }
+
+                    self.editor.add_character(context, Character::from_char(unicode));
+                    self.rerender(context);
                 },
 
                 Event::Resized { width, height } => {
@@ -103,7 +133,7 @@ impl<'w> PoetWindow<'w> {
             }
         }
 
-        return None;
+        return action_queue;
     }
 
     pub fn resize(&mut self, context: &Context, size: Vector2f) {

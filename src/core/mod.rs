@@ -43,7 +43,7 @@ impl<'i> Instance<'i> {
         'handle: while index < self.windows.len() {
             self.windows[index].display();
 
-            while let Some(action) = self.windows[index].handle_input(&self.context) {
+            for action in self.windows[index].handle_input(&self.context) {
                 match action {
                     CoreAction::CloseWindow => {
                         self.windows.remove(index);
