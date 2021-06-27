@@ -800,7 +800,8 @@ impl Editor {
 
             SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
-                    self.move_selection_to_start(context, false, index);
+                    let select_entire_line = self.is_selection_multiline(index);
+                    self.move_selection_to_start(context, select_entire_line, index);
                     self.update_offset(index);
                 }
             },
