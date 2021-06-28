@@ -46,9 +46,9 @@ impl TextBox {
     }
 
     pub fn set(&mut self, content: SharedString) {
-        //self.selection.reset();
-        //self.selection.index = content.len();
-        //self.content = format_shared!("{} ", content);
+        self.selection.primary_index = 0;
+        self.selection.secondary_index = 0;
+        self.content = format_shared!("{} ", content);
     }
 
     fn remove_character(&mut self) {

@@ -86,16 +86,6 @@ impl Editor {
     pub fn open_file(&mut self, file_name: SharedString) -> Status<()> {
 
         // make sure there is no unsaved changes
-        self.text_buffer = confirm!(read_file(&file_name));
-
-        if self.text_buffer.is_empty() {
-            self.text_buffer.push(Character::from_char('\n'));
-        }
-
-        self.file_name = Some(file_name.clone()); // REMOVE CLONE
-        self.reset();
-
-        // make sure that the file ends on a newline and if not, append one
 
         // set language for specific file if specified and only load if it changed
         let pieces = file_name.split(&SharedString::from("."), true);
@@ -105,15 +95,25 @@ impl Editor {
                 "cip" => SharedString::from("cipher"),
                 "asm" => SharedString::from("doofenshmirtz"),
                 "uni" => SharedString::from("entleman"),
-                "data" => SharedString::from("seashell"),
+                "data" => SharedString::from("seamonkey"),
                 _other => SharedString::from("none"),
             }
         } else {
             SharedString::from("none")
         };
 
-        //self.language = SharedString::from("none");
-        self.tokenizer = confirm!(Self::load_language(&self.language));
+        let tokenizer = confirm!(Self::load_language(&self.language));
+        let mut text_buffer = confirm!(read_file(&file_name));
+
+        if text_buffer.is_empty() || !self.text_buffer[self.text_buffer.len() - 1].is_newline() {
+            self.text_buffer.push(Character::from_char('\n'));
+        }
+
+        self.file_name = Some(file_name.clone()); // REMOVE CLONE
+        self.tokenizer = tokenizer;
+        self.text_buffer = text_buffer;
+        self.reset();
+
         return self.parse();
     }
 
@@ -126,7 +126,7 @@ impl Editor {
 
     fn load_language(language: &SharedString) -> Status<Tokenizer> {
         let file_path = format_shared!("/home/.config/poet/languages/{}.data", language);
-        let tokenizer_map = confirm!(read_map(&file_path));
+        let tokenizer_map = confirm!(read_map(&file_path)); // confirm!(read_map(&file_path), Message, "...");
         return Tokenizer::new(&tokenizer_map);
     }
 
@@ -1053,6 +1053,7 @@ impl Editor {
 
             DialogueMode::OpenFile => {
                 let (handled, status) = self.open_file_dialogue.handle_action(context, action);
+
                 if let Some(completed) = status {
                     if completed {
                         let file_name = self.open_file_dialogue.file_name_box.get();
@@ -1061,16 +1062,20 @@ impl Editor {
                             return success!(handled);
                         }
                     }
+
                     self.dialogue_mode = DialogueMode::None;
                 }
+
                 return success!(handled);
             },
 
             DialogueMode::SetLanguage => {
                 let (handled, status) = self.set_language_dialogue.handle_action(context, action);
                 if let Some(completed) = status {
+
                     if completed && self.language != self.set_language_dialogue.language_box.get() {
                         let new_language = self.set_language_dialogue.language_box.get();
+
                         match Self::load_language(&new_language) {
 
                             Status::Success(tokenizer) => {
@@ -1086,6 +1091,7 @@ impl Editor {
                             }
                         }
                     }
+
                     self.set_language_dialogue.language_box.clear();
                     self.dialogue_mode = DialogueMode::None;
                 }
@@ -1422,6 +1428,7 @@ impl Editor {
     }
 
     fn draw_error_message(&self, framebuffer: &mut RenderTexture, context: &Context, message: &SharedString) {
+        println!("{}", message);
         //terminal.set_color_pair(&context.theme.panel.background, &context.theme.error_color, true);
         //terminal.move_cursor(0, context.line_number_offset);
         //print!("{}", message);
