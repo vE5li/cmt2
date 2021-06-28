@@ -87,6 +87,11 @@ impl Editor {
 
         // make sure there is no unsaved changes
         self.text_buffer = confirm!(read_file(&file_name));
+
+        if self.text_buffer.is_empty() {
+            self.text_buffer.push(Character::from_char('\n'));
+        }
+
         self.file_name = Some(file_name.clone()); // REMOVE CLONE
         self.reset();
 
