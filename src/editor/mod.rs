@@ -26,14 +26,6 @@ macro_rules! handle_return {
     })
 }
 
-macro_rules! skip_action_if {
-    ($condition: expr) => ({
-        if $condition {
-            continue
-        }
-    })
-}
-
 pub fn length_from_position(position: Vec<Position>) -> usize {
     return position.iter().map(|position| position.length).sum();
 }
@@ -352,7 +344,6 @@ impl Editor {
 
     fn append(&mut self) {
         for index in self.selection_start()..self.selections.len() {
-            skip_action_if!(!self.is_selection_extended(index));
             self.move_selection_to_last(index);
 
             if !self.is_selection_newline(index) {
@@ -369,7 +360,6 @@ impl Editor {
 
     fn insert(&mut self) {
         for index in self.selection_start()..self.selections.len() {
-            skip_action_if!(!self.is_selection_extended(index));
             self.move_selection_to_first(index);
             self.update_offset(index);
             self.reset_selection(index);
