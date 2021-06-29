@@ -101,7 +101,7 @@ impl Editor {
             self.text_buffer.push(Character::from_char('\n'));
         }
 
-        self.file_name = Some(file_name.clone()); // REMOVE CLONE
+        self.file_name = Some(file_name);
         self.tokenizer = tokenizer;
         self.text_buffer = text_buffer;
         self.reset();
@@ -1009,26 +1009,45 @@ impl Editor {
         }
     }
 
-    fn index_has_selection(&self, buffer_index: usize) -> bool {
+    fn index_has_selection(&self, primary_index: usize, secondary_index: usize) -> bool {
         for index in 0..self.selections.len() {
-            if buffer_index >= self.selection_smallest_index(index) && buffer_index <= self.selection_biggest_index(index) {
+            if primary_index >= self.selection_smallest_index(index) && secondary_index <= self.selection_biggest_index(index) {
                 return true;
             }
         }
         return false;
     }
 
-    fn select_next(&mut self) {
-        let selection_buffer = self.get_selected_text(self.selections.len() - 1);
-        let found_positions = self.text_buffer.position(&selection_buffer);
+    fn sort_selection_matches(&self, index: usize, matches: &mut Vec<usize>) {
+        let selection_start = self.selection_smallest_index(index);
 
-        for position in found_positions {
-            if !self.index_has_selection(position) {
-                let offset = self.offset_from_index(position);
-                let length = position + selection_buffer.len() - 1;
-                let selection = Selection::new(position, length, offset);
+        for _ in 0..matches.len() {
+            if matches[0] == selection_start {
+                // more optimization because the selected match can not be selected again
+                matches.remove(0);
+                return;
+            }
+
+            let match_buffer = matches.remove(0);
+            matches.push(match_buffer);
+        }
+    }
+
+    fn select_next(&mut self) {
+        for index in self.selection_start()..self.selections.len() {
+
+            let selection_length = self.selection_length(index);
+            let selection_buffer = self.get_selected_text(index);
+            let mut selection_matches = self.text_buffer.position(&selection_buffer);
+
+            self.sort_selection_matches(index, &mut selection_matches);
+            let primary_index = selection_matches[0];
+            let secondary_index = primary_index + selection_length - 1;
+
+            if !self.index_has_selection(primary_index, secondary_index) {
+                let offset = self.offset_from_index(primary_index);
+                let selection = Selection::new(primary_index, secondary_index, offset);
                 self.selections.push(selection);
-                return
             }
         }
     }
