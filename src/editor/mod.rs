@@ -1489,21 +1489,17 @@ impl Editor {
             character_text.set_style(self.tokens[token_index].get_style(context));
         }
 
+        // merge into one
+        if context.line_numbers {
+            line_number_base.set_position(Vector2f::new(context.theme.line_number.offset * context.font_size as f32, top_offset + context.theme.line_number.gap * line_scaling));
+            framebuffer.draw(&line_number_base);
+            let text_position = Vector2f::new(context.theme.line_number.offset * context.font_size as f32 + context.theme.line_number.text_offset * context.font_size as f32, top_offset + line_padding + context.theme.line_number.gap * line_scaling);
+            draw_spaced_text(framebuffer, &mut line_number_text, text_position, &format_shared!("{}", line_number), character_scaling);
+        }
+
         for index in index..self.text_buffer.len() {
             if top_offset >= self.size.y {
                 break;
-            }
-
-            if draw_newline {
-                if context.line_numbers {
-                    line_number_base.set_position(Vector2f::new(context.theme.line_number.offset * context.font_size as f32, top_offset + context.theme.line_number.gap * line_scaling));
-                    framebuffer.draw(&line_number_base);
-
-                    let text_position = Vector2f::new(context.theme.line_number.offset * context.font_size as f32 + context.theme.line_number.text_offset * context.font_size as f32, top_offset + line_padding + context.theme.line_number.gap * line_scaling);
-                    draw_spaced_text(framebuffer, &mut line_number_text, text_position, &format_shared!("{}", line_number), character_scaling);
-                }
-
-                draw_newline = false;
             }
 
             if index >= self.tokens[token_index].index + self.tokens[token_index].length {
@@ -1514,18 +1510,26 @@ impl Editor {
                 }
             }
 
-            if left_offset <= self.size.x {
-                character_text.set_string(&format!("{}", self.text_buffer[index].as_char()));
-                character_text.set_position(Vector2f::new(left_offset, top_offset + line_padding));
-                framebuffer.draw(&character_text);
-            }
-
             if self.text_buffer[index].is_newline() {
                 left_offset = line_number_offset + context.theme.panel.left_offset * context.font_size as f32;
                 top_offset += line_scaling;
                 line_number += 1;
-                draw_newline = true;
-            } else {
+
+                // merge into one
+                if context.line_numbers {
+                    line_number_base.set_position(Vector2f::new(context.theme.line_number.offset * context.font_size as f32, top_offset + context.theme.line_number.gap * line_scaling));
+                    framebuffer.draw(&line_number_base);
+                    let text_position = Vector2f::new(context.theme.line_number.offset * context.font_size as f32 + context.theme.line_number.text_offset * context.font_size as f32, top_offset + line_padding + context.theme.line_number.gap * line_scaling);
+                    draw_spaced_text(framebuffer, &mut line_number_text, text_position, &format_shared!("{}", line_number), character_scaling);
+                }
+
+                continue;
+            }
+
+            if left_offset <= self.size.x {
+                character_text.set_string(&format!("{}", self.text_buffer[index].as_char()));
+                character_text.set_position(Vector2f::new(left_offset, top_offset + line_padding));
+                framebuffer.draw(&character_text);
                 left_offset += character_scaling;
             }
         }
@@ -1623,17 +1627,14 @@ impl Editor {
                     selection_text.set_fill_color(context.theme.selection.text);
                 }
 
-                let selection_text_character = match start_index + offset < self.text_buffer.len() {
-                    true => self.text_buffer[start_index + offset],
-                    false => Character::from_char(' '),
-                };
-
                 base.set_position(Vector2f::new(left_offset, top_offset));
-                selection_text.set_position(Vector2f::new(left_offset, top_offset));
-                selection_text.set_string(&format!("{}", selection_text_character));
-
                 framebuffer.draw(base);
-                framebuffer.draw(&selection_text);
+
+                if start_index + offset < self.text_buffer.len() { // || !character.has_glyph
+                    selection_text.set_position(Vector2f::new(left_offset, top_offset));
+                    selection_text.set_string(&format!("{}", self.text_buffer[start_index + offset]));
+                    framebuffer.draw(&selection_text);
+                }
 
                 if self.text_buffer[start_index + offset].is_newline() {
                     left_offset = line_number_offset + context.theme.panel.left_offset * context.font_size as f32;
