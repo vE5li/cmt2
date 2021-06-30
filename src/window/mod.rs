@@ -110,7 +110,12 @@ impl<'w> PoetWindow<'w> {
                         continue 'handle;
                     }
 
-                    self.editor.add_character(context, Character::from_char(unicode));
+                    let character = match unicode {
+                        '\r' => Character::from_char('\n'),
+                        char => Character::from_char(char),
+                    };
+
+                    self.editor.add_character(context, character);
                     self.rerender(context);
                 },
 
