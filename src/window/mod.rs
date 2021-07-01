@@ -16,21 +16,23 @@ pub struct PoetWindow<'w> {
 
 impl<'w> PoetWindow<'w> {
 
-    pub fn editor() -> Status<Self> {
+    pub fn editor(context: &Context) -> Status<Self> {
 
         let size = Vector2f::new(400.0, 400.0);
 
         let mut window = RenderWindow::new((400, 400), "poet", Style::DEFAULT, &Default::default());
         window.set_vertical_sync_enabled(true);
 
+        let mut settings = ContextSettings::default();
+        settings.set_antialiasing_level(context.antialiasing_level as u32);
+        let framebuffer = RenderTexture::with_settings(400, 400, &settings).unwrap();
         let mut surface = RectangleShape::with_size(size);
-        let framebuffer = RenderTexture::new(400, 400, false).unwrap();
 
         let texture_pointer = framebuffer.texture() as *const _;
         surface.set_texture(unsafe { &*texture_pointer }, false);
 
-        let mut editor = confirm!(Editor::new()); // remove mut
-        confirm!(editor.open_file(format_shared!("/home/main.cip")));
+        let mut editor = confirm!(Editor::new());
+        confirm!(editor.open_file(format_shared!("/home/main.cip"))); // new_file
 
         return success!(Self {
             size: size,
@@ -55,7 +57,6 @@ impl<'w> PoetWindow<'w> {
                     if !is_modifier_key(code) {
                         let modifiers = Modifiers::from(shift, ctrl, alt, system);
                         let key_event = KeyEvent::new(code, modifiers);
-                        let mut unhandled_actions = Vec::new();
 
                         //println!("modifiers: {:?}", modifiers);
                         //println!("key event: {:?}", key_event);
@@ -66,8 +67,9 @@ impl<'w> PoetWindow<'w> {
 
                             if let Some(unhandled_action) = self.editor.handle_action(context, action) {
                                 if unhandled_action.is_global() {
-                                    unhandled_actions.push(unhandled_action);
+                                    action_queue.push(unhandled_action);
                                     handled = true;
+                                    continue 'handle;
                                 }
                             } else {
                                 self.rerender(context);
@@ -75,8 +77,6 @@ impl<'w> PoetWindow<'w> {
                                 continue 'handle;
                             }
                         }
-
-                        action_queue.extend_from_slice(unhandled_actions.as_slice());
                     }
                 },
 
@@ -125,19 +125,22 @@ impl<'w> PoetWindow<'w> {
         return action_queue;
     }
 
-    pub fn resize(&mut self, context: &Context, size: Vector2f) {
-
-        self.size = size;
-
-        let view = View::from_rect(&FloatRect::new(0.0, 0.0, size.x as f32, size.y as f32));
+    pub fn reallocate(&mut self, context: &Context) {
+        let view = View::from_rect(&FloatRect::new(0.0, 0.0, self.size.x as f32, self.size.y as f32));
         self.window.set_view(&view);
 
-        self.surface = RectangleShape::with_size(size);
-        self.framebuffer = RenderTexture::new(size.x as u32, size.y as u32, false).unwrap();
+        let mut settings = ContextSettings::default();
+        settings.set_antialiasing_level(context.antialiasing_level as u32);
+        self.framebuffer = RenderTexture::with_settings(self.size.x as u32, self.size.y as u32, &settings).unwrap();
+        self.surface = RectangleShape::with_size(self.size);
 
         let texture_pointer = self.framebuffer.texture() as *const _;
         self.surface.set_texture(unsafe { &*texture_pointer }, false);
+    }
 
+    pub fn resize(&mut self, context: &Context, size: Vector2f) {
+        self.size = size;
+        self.reallocate(context);
         self.editor.resize(context, size);
     }
 
@@ -149,6 +152,10 @@ impl<'w> PoetWindow<'w> {
         self.window.clear(Color::BLACK);
         self.window.draw(&self.surface);
         self.window.display();
+    }
+
+    pub fn set_error_state(&mut self, error: Error) {
+        self.editor.set_error_state(error);
     }
 
     pub fn close(&mut self) {

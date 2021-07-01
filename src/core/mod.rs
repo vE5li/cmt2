@@ -21,7 +21,7 @@ impl<'i> Instance<'i> {
     }
 
     pub fn new_editor(&mut self) -> Status<()> {
-        let mut new_window = confirm!(PoetWindow::editor());
+        let mut new_window = confirm!(PoetWindow::editor(&self.context));
         new_window.rerender(&self.context);
 
         self.windows.push(new_window);
@@ -35,6 +35,7 @@ impl<'i> Instance<'i> {
     pub fn handle_input(&mut self) {
         let mut index = 0;
         let mut force_rerender = false;
+        let mut force_reallocate = false;
 
         'handle: while index < self.windows.len() {
             self.windows[index].display();
@@ -60,6 +61,20 @@ impl<'i> Instance<'i> {
 
                     Action::ZoomOut => {
                         self.context.zoom_out();
+                        force_rerender = true;
+                    },
+
+                    Action::IncreaseAntialiasing => {
+                        println!("INC");
+                        self.context.increase_antialiasing();
+                        force_reallocate = true;
+                        force_rerender = true;
+                    },
+
+                    Action::DecreaseAntialiasing => {
+                        println!("DEC");
+                        self.context.decrease_antialiasing();
+                        force_reallocate = true;
                         force_rerender = true;
                     },
 
@@ -95,11 +110,33 @@ impl<'i> Instance<'i> {
                         panic!("implement");
                     },
 
+                    Action::Reload => {
+                        let configuration_directory = SharedString::from("/home/.config/poet/");
+
+                        match Context::new(&configuration_directory) {
+
+                            Status::Success(context) => {
+                                self.context = context;
+                                force_rerender = true;
+                            },
+
+                            Status::Error(error) => {
+                                self.windows[index].set_error_state(error);
+                                self.windows[index].rerender(&self.context);
+                            }
+                        }
+                    },
+
                     _unhandled => { },
                 }
             }
 
             index += 1;
+        }
+
+        if force_reallocate {
+            let context = &self.context;
+            self.windows.iter_mut().for_each(|window| window.reallocate(context));
         }
 
         if force_rerender {

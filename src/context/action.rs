@@ -3,6 +3,7 @@ use seamonkey::*;
 #[derive(Copy, Clone, Debug, PartialEq, Hash)]
 pub enum Action {
     Quit,
+    Reload,
     ToggleAppendLines,
     ToggleStatusBar,
     ToggleLineNumbers,
@@ -14,6 +15,7 @@ pub enum Action {
     CharacterMode,
     TokenMode,
     LineMode,
+    NewFile,
     OpenFile,
     SaveFile,
     SetLanguage,
@@ -37,6 +39,8 @@ pub enum Action {
     DeleteLine,
     ZoomIn,
     ZoomOut,
+    IncreaseAntialiasing,
+    DecreaseAntialiasing,
     NewEditor,
     CloseWindow,
     PageUp,
@@ -68,6 +72,7 @@ impl Action {
     pub fn from_literal(literal: &SharedString) -> Status<Self> {
         match literal.printable().as_str() {
             "quit" => return success!(Action::Quit),
+            "reload" => return success!(Action::Reload),
             "append_lines" => return success!(Action::ToggleAppendLines),
             "status_bar" => return success!(Action::ToggleStatusBar),
             "line_numbers" => return success!(Action::ToggleLineNumbers),
@@ -78,6 +83,7 @@ impl Action {
             "character_mode" => return success!(Action::CharacterMode),
             "token_mode" => return success!(Action::TokenMode),
             "line_mode" => return success!(Action::LineMode),
+            "new_file" => return success!(Action::NewFile),
             "open_file" => return success!(Action::OpenFile),
             "save_file" => return success!(Action::SaveFile),
             "set_language" => return success!(Action::SetLanguage),
@@ -97,6 +103,8 @@ impl Action {
             "delete_line" => return success!(Action::DeleteLine),
             "zoom_in" => return success!(Action::ZoomIn),
             "zoom_out" => return success!(Action::ZoomOut),
+            "increase_antialiasing" => return success!(Action::IncreaseAntialiasing),
+            "decrease_antialiasing" => return success!(Action::DecreaseAntialiasing),
             "new_editor" => return success!(Action::NewEditor),
             "close_window" => return success!(Action::CloseWindow),
             "page_up" => return success!(Action::PageUp),
@@ -132,6 +140,7 @@ impl Action {
     pub fn is_global(&self) -> bool {
         match self {
             Action::Quit => return true,
+            Action::Reload => return true,
             Action::ToggleAppendLines => return true,
             Action::ToggleStatusBar => return true,
             Action::ToggleLineNumbers => return true,
@@ -141,6 +150,8 @@ impl Action {
             Action::ToggleFocusBar => return true,
             Action::ZoomIn => return true,
             Action::ZoomOut => return true,
+            Action::IncreaseAntialiasing => return true,
+            Action::DecreaseAntialiasing => return true,
             Action::NewEditor => return true,
             Action::CloseWindow => return true,
             _unhandled => return false,

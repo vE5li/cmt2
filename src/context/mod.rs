@@ -16,6 +16,9 @@ pub use self::action::Action;
 const SMALLEST_FONT_SIZE: usize = 5;
 const BIGGEST_FONT_SIZE: usize = 50;
 
+const ANTIALIASING_MIN: usize = 0;
+const ANTIALIASING_MAX: usize = 8;
+
 pub struct Context {
     save_file: SharedString,
     pub line_numbers: bool,
@@ -37,6 +40,7 @@ pub struct Context {
     pub unfocused_selections: bool,
     pub focus_bar: bool,
     pub start_at_symbol: bool,
+    pub antialiasing_level: usize,
 }
 
 impl Context {
@@ -64,6 +68,7 @@ impl Context {
         let focus_bar = get_boolean!(context_map, "focus_bar", true);
         let start_at_symbol = get_boolean!(context_map, "start_at_symbol", true);
         let theme_name = get_string!(context_map, "theme", "default");
+        let antialiasing_level = get_integer!(context_map, "antialiasing_level", 8);
 
         let theme_file = format_shared!("/home/.config/poet/themes/{}.data", &theme_name);
         let theme_map = confirm!(read_map(&theme_file));
@@ -156,6 +161,7 @@ impl Context {
             unfocused_selections: unfocused_selections,
             focus_bar: focus_bar,
             start_at_symbol: start_at_symbol,
+            antialiasing_level: antialiasing_level,
         })
     }
 
@@ -216,6 +222,18 @@ impl Context {
     pub fn zoom_out(&mut self) {
         if self.font_size > SMALLEST_FONT_SIZE {
             self.font_size -= 1;
+        }
+    }
+
+    pub fn increase_antialiasing(&mut self) {
+        if self.antialiasing_level < ANTIALIASING_MAX {
+            self.antialiasing_level *= 2;
+        }
+    }
+
+    pub fn decrease_antialiasing(&mut self) {
+        if self.antialiasing_level > ANTIALIASING_MIN {
+            self.antialiasing_level /= 2;
         }
     }
 

@@ -129,8 +129,6 @@ pub struct PanelTheme {
     pub identifier_style: TextStyle,
     pub type_identifier_style: TextStyle,
     pub error_style: TextStyle,
-    //pub gap: f32,
-    //pub radius: f32,
     pub left_offset: f32,
     pub top_offset: f32,
     pub right_offset: f32,
@@ -212,6 +210,8 @@ pub struct DialogueTheme {
     pub text_style: TextStyle,
     pub ghost_style: TextStyle,
     pub height: f32,
+    pub corner_radius: f32,
+    pub text_offset: f32,
 }
 
 impl DialogueTheme {
@@ -227,6 +227,8 @@ impl DialogueTheme {
             text_style: get_style!(theme, "text_style", TextStyle::REGULAR),
             ghost_style: get_style!(theme, "ghost_style", TextStyle::ITALIC),
             height: get_float!(theme, "height", 1.5),
+            corner_radius: get_float!(theme, "corner_radius", 0.0),
+            text_offset: get_float!(theme, "text_offset", 1.5),
         })
     }
 }
@@ -296,6 +298,42 @@ impl SelectionTheme {
 }
 
 #[derive(Clone, Debug)]
+pub struct PopupTheme {
+    pub info_background: Color,
+    pub warning_background: Color,
+    pub error_background: Color,
+    pub info_text: Color,
+    pub warning_text: Color,
+    pub error_text: Color,
+    pub info_style: TextStyle,
+    pub warning_style: TextStyle,
+    pub error_style: TextStyle,
+    pub height: f32,
+    pub corner_radius: f32,
+    pub text_offset: f32,
+}
+
+impl PopupTheme {
+
+    pub fn from(theme: &Data) -> Status<Self> {
+        return success!(Self {
+            info_background: get_color!(theme, "info_background", 115, 115, 115, 255),
+            warning_background: get_color!(theme, "warning_background", 115, 115, 115, 255),
+            error_background: get_color!(theme, "error_background", 115, 115, 115, 255),
+            info_text: get_color!(theme, "info_text", 35, 35, 35, 255),
+            warning_text: get_color!(theme, "warning_text", 35, 35, 35, 255),
+            error_text: get_color!(theme, "error_text", 35, 35, 35, 255),
+            info_style: get_style!(theme, "info_style", TextStyle::REGULAR),
+            warning_style: get_style!(theme, "warning_style", TextStyle::REGULAR),
+            error_style: get_style!(theme, "error_style", TextStyle::BOLD),
+            height: get_float!(theme, "height", 1.5),
+            corner_radius: get_float!(theme, "corner_radius", 0.0),
+            text_offset: get_float!(theme, "text_offset", 1.5),
+        })
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Theme {
     pub panel: PanelTheme,
     pub line_number: LineNumberTheme,
@@ -303,6 +341,7 @@ pub struct Theme {
     pub status_bar: StatusBarTheme,
     pub focus_bar: FocusBarTheme,
     pub selection: SelectionTheme,
+    pub popup: PopupTheme,
 }
 
 impl Theme {
@@ -315,6 +354,7 @@ impl Theme {
             status_bar: confirm!(StatusBarTheme::from(&get_subtheme!(theme, "status_bar"))),
             focus_bar: confirm!(FocusBarTheme::from(&get_subtheme!(theme, "focus_bar"))),
             selection: confirm!(SelectionTheme::from(&get_subtheme!(theme, "selection"))),
+            popup: confirm!(PopupTheme::from(&get_subtheme!(theme, "popup"))),
         })
     }
 }

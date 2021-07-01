@@ -3,7 +3,7 @@ use super::TextBox;
 use context::{ Context, Action };
 use sfml::graphics::*;
 use sfml::system::Vector2f;
-use graphics::draw_spaced_text;
+use graphics::{ RoundedRectangle, draw_spaced_text };
 
 macro_rules! handle_return_none {
     ($expression: expr) => ({
@@ -241,7 +241,10 @@ impl ComboBox {
 
             let character_scaling = context.character_spacing * context.font_size as f32;
             let dialogue_height = context.theme.dialogue.height * context.font_size as f32;
-            let mut text_box_base = RectangleShape::with_size(Vector2f::new(size.x, dialogue_height));
+            let corner_radius = context.theme.dialogue.corner_radius;
+
+            let rounded = RoundedRectangle::new(size.x, dialogue_height, corner_radius, corner_radius, corner_radius, corner_radius);
+            let mut text_box_base = CustomShape::new(Box::new(rounded));
             text_box_base.set_outline_thickness(0.0);
 
             let mut text_box_text = Text::default();
@@ -269,7 +272,7 @@ impl ComboBox {
                 text_box_base.set_position(Vector2f::new(offset.x, top_offset));
                 framebuffer.draw(&text_box_base);
 
-                draw_spaced_text(framebuffer, &mut text_box_text, Vector2f::new(offset.x + 10.0, top_offset), &valid_variants[index], character_scaling);
+                draw_spaced_text(framebuffer, &mut text_box_text, Vector2f::new(offset.x + context.theme.dialogue.text_offset * character_scaling, top_offset), &valid_variants[index], character_scaling);
                 top_offset += dialogue_height;
             }
         }

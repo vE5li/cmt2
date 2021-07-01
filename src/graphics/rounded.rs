@@ -41,8 +41,8 @@ impl RoundedRectangle {
                     points.push(Vector2f::new(width, top_right_radius));
                 } else {
                     let angle = quarter_rotation / (point_count - 1) as f32 * index as f32;
-                    let x = top_right_radius - top_right_radius * angle.cos();
-                    let y = top_right_radius - top_right_radius * angle.sin();
+                    let x = top_right_radius - top_right_radius * angle.sin();
+                    let y = top_right_radius - top_right_radius * angle.cos();
                     points.push(Vector2f::new(width - x, y));
                 }
             }
@@ -77,8 +77,8 @@ impl RoundedRectangle {
                     points.push(Vector2f::new(0.0, height - bottom_left_radius));
                 } else {
                     let angle = quarter_rotation / (point_count - 1) as f32 * index as f32;
-                    let x = bottom_left_radius - bottom_left_radius * angle.cos();
-                    let y = bottom_left_radius - bottom_left_radius * angle.sin();
+                    let x = bottom_left_radius - bottom_left_radius * angle.sin();
+                    let y = bottom_left_radius - bottom_left_radius * angle.cos();
                     points.push(Vector2f::new(x, height - y));
                 }
             }

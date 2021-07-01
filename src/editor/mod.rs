@@ -77,6 +77,18 @@ impl Editor {
         self.size = size;
     }
 
+    pub fn new_file(&mut self) -> Status<()> {
+
+        let language = SharedString::from("none");
+        self.tokenizer = confirm!(Self::load_language(&language));
+        self.file_name = None;
+        self.text_buffer = SharedString::from("\n");
+        self.language = language;
+
+        self.reset();
+        return self.parse();
+    }
+
     pub fn open_file(&mut self, file_name: SharedString) -> Status<()> {
 
         // make sure there is no unsaved changes
@@ -107,23 +119,24 @@ impl Editor {
         self.tokenizer = tokenizer;
         self.text_buffer = text_buffer;
         self.language = language;
-        self.reset();
 
+        self.reset();
         return self.parse();
     }
 
-    pub fn save_file(&mut self) -> Status<()> {
+    pub fn save_file(&mut self) {
+
         let file_name = match &self.file_name {
-            Some(file_name) => format_shared!("{}.new", file_name), // temporary
+            Some(file_name) => file_name,
             None => {
-                let error_message = "cannot save file without file name (yet)";
-                self.dialogue_mode = DialogueMode::Error(SharedString::from(error_message));
-                return error!(string!(error_message));
+                self.set_error_state(Error::Message(string!("cannot save file without file name (yet)")));
+                return;
             },
         };
 
-
-        return write_file(&file_name, &self.text_buffer);
+        if let Status::Error(error) = write_file(&file_name, &self.text_buffer) {
+            self.set_error_state(error);
+        }
     }
 
     pub fn reset(&mut self) {
@@ -1164,8 +1177,8 @@ impl Editor {
                 if let Some(completed) = status {
                     if completed {
                         let file_name = self.open_file_dialogue.file_name_box.get();
-                        if let Status::Error(error) = self.open_file(file_name.clone()) { // handle the actual error
-                            self.dialogue_mode = DialogueMode::Error(format_shared!("missing file {}", file_name));
+                        if let Status::Error(error) = self.open_file(file_name.clone()) {
+                            self.set_error_state(error);
                             return None;
                         }
                     }
@@ -1300,6 +1313,8 @@ impl Editor {
             Action::TokenMode => handle_return!(self.token_mode()),
 
             Action::LineMode => handle_return!(self.line_mode(context)),
+
+            Action::NewFile => handle_return!(self.new_file()),
 
             Action::OpenFile => handle_return!(self.open_open_file_dialogue()),
 
@@ -1534,7 +1549,7 @@ impl Editor {
 
             DialogueMode::Action => self.action_dialogue.add_character(character),
 
-            DialogueMode::Error(..) => panic!(),
+            DialogueMode::Error(..) => self.dialogue_mode = DialogueMode::None,
 
             DialogueMode::None => {
                 for index in 0..self.selections.len() {
@@ -1567,12 +1582,39 @@ impl Editor {
         }
     }
 
-    fn draw_error_message(&self, framebuffer: &mut RenderTexture, context: &Context, message: &SharedString) {
-        println!("{}", message);
-        //terminal.set_color_pair(&context.theme.panel.background, &context.theme.error_color, true);
-        //terminal.move_cursor(0, context.line_number_offset);
-        //print!("{}", message);
-        //fill_line(self.size.width - context.line_number_offset - message.len(), ' ');
+    fn draw_popup(&self, framebuffer: &mut RenderTexture, context: &Context, message: &SharedString, background_color: Color, text_color: Color, text_style: TextStyle, size: Vector2f, offset: Vector2f) {
+
+        let character_scaling = context.character_spacing * context.font_size as f32;
+        let popup_height = context.theme.popup.height * context.font_size as f32;
+        let corner_radius = context.theme.popup.corner_radius;
+
+        let rounded = RoundedRectangle::new(size.x, popup_height, corner_radius, corner_radius, corner_radius, corner_radius);
+        let mut error_base = CustomShape::new(Box::new(rounded));
+        error_base.set_outline_thickness(0.0);
+        error_base.set_fill_color(background_color);
+        error_base.set_position(offset);
+
+        let mut message_text = Text::default();
+        message_text.set_font(&context.font);
+        message_text.set_character_size(context.font_size as u32);
+        message_text.set_outline_thickness(0.0);
+        message_text.set_fill_color(text_color);
+        message_text.set_style(text_style);
+
+        let top_displacement = (popup_height - (context.font_size as f32 * 1.3)) / 2.0;
+        let text_position = Vector2f::new(offset.x + context.theme.popup.text_offset * character_scaling, offset.y + top_displacement);
+
+        framebuffer.draw(&error_base);
+        draw_spaced_text(framebuffer, &mut message_text, text_position, &message, character_scaling);
+    }
+
+    fn draw_error_message(&self, framebuffer: &mut RenderTexture, context: &Context, message: &SharedString, size: Vector2f, offset: Vector2f) {
+        self.draw_popup(framebuffer, context, message, context.theme.popup.error_background, context.theme.popup.error_text, context.theme.popup.error_style, size, offset);
+    }
+
+    pub fn set_error_state(&mut self, error: Error) {
+        let message = error.display(&None, &map!());
+        self.dialogue_mode = DialogueMode::Error(message);
     }
 
     fn draw_text(&self, framebuffer: &mut RenderTexture, context: &Context) {
@@ -1642,7 +1684,7 @@ impl Editor {
                 }
             }
 
-            if self.text_buffer[index].is_newline() {
+            if self.text_buffer[index].is_newline() && index != self.last_buffer_index() {
                 left_offset = line_number_offset + context.theme.panel.left_offset * context.font_size as f32;
                 top_offset += line_scaling;
                 line_number += 1;
@@ -1879,7 +1921,7 @@ impl Editor {
 
             DialogueMode::None => { },
 
-            DialogueMode::Error(message) => self.draw_error_message(framebuffer, context, message),
+            DialogueMode::Error(message) => self.draw_error_message(framebuffer, context, message, dialogue_size, offset),
 
             DialogueMode::OpenFile => self.open_file_dialogue.draw(framebuffer, context, dialogue_size, offset),
 

@@ -14,6 +14,7 @@ impl ActionDialogue {
         let actions = vec![
             // no "comfirm", "action", "abort"
             SharedString::from("quit"),
+            SharedString::from("reload"),
             SharedString::from("append_lines"),
             SharedString::from("status_bar"),
             SharedString::from("line_numbers"),
@@ -24,6 +25,7 @@ impl ActionDialogue {
             SharedString::from("character_mode"),
             SharedString::from("token_mode"),
             SharedString::from("line_mode"),
+            SharedString::from("new_file"),
             SharedString::from("open_file"),
             SharedString::from("save_file"),
             SharedString::from("set_language"),
@@ -40,6 +42,8 @@ impl ActionDialogue {
             SharedString::from("delete_line"),
             SharedString::from("zoom_in"),
             SharedString::from("zoom_out"),
+            SharedString::from("increase_antialiasing"),
+            SharedString::from("decrease_antialiasing"),
             SharedString::from("new_editor"),
             SharedString::from("close_window"),
             SharedString::from("page_up"),
