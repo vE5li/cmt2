@@ -20,6 +20,8 @@ pub struct Context {
     save_file: SharedString,
     pub line_numbers: bool,
     pub font_size: usize,
+    pub tab_width: usize,
+    pub scroll_size: usize,
     pub line_spacing: f32,
     pub character_spacing: f32,
     pub selection_gap: usize,
@@ -48,6 +50,8 @@ impl Context {
         let context_map = get_subtheme!(context_map, "context");
         let line_numbers = get_boolean!(context_map, "line_numbers", true);
         let font_size = get_integer!(context_map, "font_size", 14);
+        let tab_width = get_integer!(context_map, "tab_width", 4);
+        let scroll_size = get_integer!(context_map, "scroll_size", 5);
         let line_spacing = get_float!(context_map, "line_spacing", 1.2);
         let character_spacing = get_float!(context_map, "spacing", 0.625);
         let selection_gap = get_integer!(context_map, "selection_gap", 8);
@@ -135,6 +139,8 @@ impl Context {
             save_file: save_file,
             line_numbers: line_numbers,
             font_size: font_size,
+            tab_width: tab_width,
+            scroll_size: scroll_size,
             line_spacing: line_spacing,
             character_spacing: character_spacing,
             selection_gap: selection_gap,

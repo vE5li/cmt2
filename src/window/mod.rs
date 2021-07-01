@@ -134,6 +134,14 @@ impl<'w> PoetWindow<'w> {
                     self.rerender(context);
                 },
 
+                Event::MouseWheelScrolled { delta, .. } => {
+                    match delta > 0.0 {
+                        true => self.editor.scroll_up(context),
+                        false => self.editor.scroll_down(context),
+                    }
+                    self.rerender(context);
+                },
+
                 ignored => {},
             }
         }

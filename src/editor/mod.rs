@@ -40,7 +40,8 @@ pub struct Editor {
     mode: SelectionMode,
     adding_selection: bool,
     size: Vector2f,
-    scroll: usize,
+    vertical_scroll: usize,
+    horizontal_scroll: usize,
     dialogue_mode: DialogueMode,
     open_file_dialogue: OpenFileDialogue,
     set_language_dialogue: SetLanguageDialogue,
@@ -62,7 +63,8 @@ impl Editor {
             mode: SelectionMode::Character,
             adding_selection: false,
             size: Vector2f::new(0.0, 0.0),
-            scroll: 0,
+            vertical_scroll: 0,
+            horizontal_scroll: 0,
             dialogue_mode: DialogueMode::None,
             open_file_dialogue: OpenFileDialogue::new(),
             set_language_dialogue: SetLanguageDialogue::new(),
@@ -110,7 +112,8 @@ impl Editor {
     }
 
     pub fn reset(&mut self) {
-        self.scroll = 0;
+        self.vertical_scroll = 0;
+        self.horizontal_scroll = 0;
         self.selections = vec![Selection::new(0, 0, 0)];
         self.adding_selection = false;
         self.mode = SelectionMode::Character;
@@ -136,6 +139,19 @@ impl Editor {
 
         self.tokens = tokens;
         return success!(());
+    }
+
+    pub fn scroll_up(&mut self, context: &Context) {
+        match self.vertical_scroll >= context.scroll_size {
+            true => self.vertical_scroll -= context.scroll_size,
+            false => self.vertical_scroll = 0,
+        }
+    }
+
+    pub fn scroll_down(&mut self, context: &Context) {
+        //if self.vertical_scroll < self.last {
+            self.vertical_scroll += context.scroll_size;
+        //}
     }
 
     fn last_buffer_index(&self) -> usize {
@@ -1034,21 +1050,78 @@ impl Editor {
     }
 
     fn select_next(&mut self) {
-        for index in self.selection_start()..self.selections.len() {
+        match self.mode {
 
-            let selection_length = self.selection_length(index);
-            let selection_buffer = self.get_selected_text(index);
-            let mut selection_matches = self.text_buffer.position(&selection_buffer);
+            SelectionMode::Character => {
+                for index in self.selection_start()..self.selections.len() {
 
-            self.sort_selection_matches(index, &mut selection_matches);
-            let primary_index = selection_matches[0];
-            let secondary_index = primary_index + selection_length - 1;
+                    let selection_length = self.selection_length(index);
+                    let selection_buffer = self.get_selected_text(index);
+                    let mut selection_matches = self.text_buffer.position(&selection_buffer);
 
-            if !self.index_has_selection(primary_index, secondary_index) {
-                let offset = self.offset_from_index(primary_index);
-                let selection = Selection::new(primary_index, secondary_index, offset);
-                self.selections.push(selection);
-            }
+                    self.sort_selection_matches(index, &mut selection_matches);
+                    let primary_index = selection_matches[0];
+                    let secondary_index = primary_index + selection_length - 1;
+
+                    if !self.index_has_selection(primary_index, secondary_index) {
+                        let offset = self.offset_from_index(primary_index);
+                        let selection = Selection::new(primary_index, secondary_index, offset);
+                        self.selections.push(selection);
+                    }
+                }
+            },
+
+            SelectionMode::Token => {
+            },
+
+            SelectionMode::Line => {
+            },
+        }
+    }
+
+    fn duplicate_up(&mut self) {
+        match self.mode {
+
+            SelectionMode::Character => {
+                for index in self.selection_start()..self.selections.len() {
+
+                    /*let selection_length = self.selection_length(index);
+                    let selection_buffer = self.get_selected_text(index);
+                    let mut selection_matches = self.text_buffer.position(&selection_buffer);
+
+                    self.sort_selection_matches(index, &mut selection_matches);
+                    let primary_index = selection_matches[0];
+                    let secondary_index = primary_index + selection_length - 1;
+
+                    if !self.index_has_selection(primary_index, secondary_index) {
+                        let offset = self.offset_from_index(primary_index);
+                        let selection = Selection::new(primary_index, secondary_index, offset);
+                        self.selections.push(selection);
+                    }*/
+                }
+            },
+
+            SelectionMode::Token => {
+            },
+
+            SelectionMode::Line => {
+            },
+        }
+    }
+
+    fn duplicate_down(&mut self) {
+        match self.mode {
+
+            SelectionMode::Character => {
+                for index in self.selection_start()..self.selections.len() {
+                }
+            },
+
+            SelectionMode::Token => {
+            },
+
+            SelectionMode::Line => {
+            },
         }
     }
 
@@ -1210,6 +1283,10 @@ impl Editor {
             Action::ExtendStart => handle_return!(self.extend_start(context)),
 
             Action::ExtendEnd => handle_return!(self.extend_end()),
+
+            Action::DuplicateUp => handle_return!(self.duplicate_up()),
+
+            Action::DuplicateDown => handle_return!(self.duplicate_down()),
 
             Action::Append => handle_return!(self.append()),
 
@@ -1463,9 +1540,10 @@ impl Editor {
         };
 
         let mut token_index = 0;
+
         let mut draw_newline = true;
-        let mut line_number = self.scroll;
-        let mut index = self.index_from_line(self.scroll);
+        let mut line_number = self.vertical_scroll;
+        let mut index = self.index_from_line(self.vertical_scroll);
         let mut top_offset = context.theme.panel.top_offset * context.font_size as f32;
         let mut left_offset = line_number_offset + context.theme.panel.left_offset * context.font_size as f32;
 
@@ -1502,7 +1580,7 @@ impl Editor {
                 break;
             }
 
-            if index >= self.tokens[token_index].index + self.tokens[token_index].length {
+            while index >= self.tokens[token_index].index + self.tokens[token_index].length {
                 token_index += 1;
                 if context.highlighting {
                     character_text.set_fill_color(self.tokens[token_index].get_color(context));
@@ -1539,6 +1617,7 @@ impl Editor {
 
         let character_scaling = context.character_spacing * context.font_size as f32;
         let line_scaling = context.line_spacing * context.font_size as f32;
+        let scroll_offset = self.vertical_scroll as f32 * line_scaling + context.theme.panel.top_offset * context.font_size as f32;
         let line_number_offset = match context.line_numbers {
             true => context.theme.line_number.width as f32 * character_scaling + context.theme.line_number.offset * context.font_size as f32,
             false => 0.0,
@@ -1555,10 +1634,21 @@ impl Editor {
             let mut draw_line = true;
 
             for offset in 0..self.selection_length(index) {
-                if draw_line {
-                    selection_line.set_position(Vector2f::new(left_offset, top_offset));
-                    framebuffer.draw(&selection_line);
-                    draw_line = false;
+
+                //if top_offset < scroll_offset {
+                //    continue;
+                //} else if top_offset - scroll_offset > self.size.y {
+                //    break;
+                //}
+
+                if top_offset >= scroll_offset {
+                    if draw_line {
+                        selection_line.set_position(Vector2f::new(left_offset, top_offset - scroll_offset + context.theme.panel.top_offset * context.font_size as f32));
+                        framebuffer.draw(&selection_line);
+                        draw_line = false;
+                    }
+                } else if top_offset - scroll_offset > self.size.y {
+                    break;
                 }
 
                 if start_index + offset < self.text_buffer.len() && self.text_buffer[start_index + offset].is_newline() {
@@ -1574,6 +1664,7 @@ impl Editor {
         let line_scaling = context.line_spacing * context.font_size as f32;
         let character_scaling = context.character_spacing * context.font_size as f32;
         let selection_radius = context.theme.selection.radius * context.font_size as f32;
+        let scroll_offset = self.vertical_scroll as f32 * line_scaling + context.theme.panel.top_offset * context.font_size as f32;
         let line_number_offset = match context.line_numbers {
             true => context.theme.line_number.width as f32 * character_scaling + context.theme.line_number.offset * context.font_size as f32,
             false => 0.0,
@@ -1609,31 +1700,35 @@ impl Editor {
 
             for offset in 0..selection_length {
 
-                let mut base = if selection_length == 1 {
-                    &mut single_selection_base
-                } else if offset == 0 {
-                    &mut left_selection_base
-                } else if offset == selection_length - 1 {
-                    &mut right_selection_base
-                } else {
-                    &mut middle_selection_base
-                };
+                if top_offset >= scroll_offset {
+                    let mut base = if selection_length == 1 {
+                        &mut single_selection_base
+                    } else if offset == 0 {
+                        &mut left_selection_base
+                    } else if offset == selection_length - 1 {
+                        &mut right_selection_base
+                    } else {
+                        &mut middle_selection_base
+                    };
 
-                if self.adding_selection && index == self.selections.len() - 1 {
-                    base.set_fill_color(context.theme.selection.new_background);
-                    selection_text.set_fill_color(context.theme.selection.new_text);
-                } else {
-                    base.set_fill_color(context.theme.selection.background);
-                    selection_text.set_fill_color(context.theme.selection.text);
-                }
+                    if self.adding_selection && index == self.selections.len() - 1 {
+                        base.set_fill_color(context.theme.selection.new_background);
+                        selection_text.set_fill_color(context.theme.selection.new_text);
+                    } else {
+                        base.set_fill_color(context.theme.selection.background);
+                        selection_text.set_fill_color(context.theme.selection.text);
+                    }
 
-                base.set_position(Vector2f::new(left_offset, top_offset));
-                framebuffer.draw(base);
+                    base.set_position(Vector2f::new(left_offset, top_offset - scroll_offset + context.theme.panel.top_offset * context.font_size as f32));
+                    framebuffer.draw(base);
 
-                if start_index + offset < self.text_buffer.len() { // || !character.has_glyph
-                    selection_text.set_position(Vector2f::new(left_offset, top_offset));
-                    selection_text.set_string(&format!("{}", self.text_buffer[start_index + offset]));
-                    framebuffer.draw(&selection_text);
+                    if start_index + offset < self.text_buffer.len() { // || !character.has_glyph
+                        selection_text.set_position(Vector2f::new(left_offset, top_offset - scroll_offset + context.theme.panel.top_offset * context.font_size as f32));
+                        selection_text.set_string(&format!("{}", self.text_buffer[start_index + offset]));
+                        framebuffer.draw(&selection_text);
+                    }
+                } else if top_offset - scroll_offset > self.size.y {
+                    break;
                 }
 
                 if self.text_buffer[start_index + offset].is_newline() {
