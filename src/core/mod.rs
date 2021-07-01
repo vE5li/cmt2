@@ -1,5 +1,3 @@
-mod action;
-
 use seamonkey::*;
 use context::{ Context, Action };
 use window::PoetWindow;
