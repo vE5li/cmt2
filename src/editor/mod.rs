@@ -172,6 +172,33 @@ impl Editor {
         return last_safe;
     }
 
+    fn visible_line_count(&self, context: &Context) -> usize {
+        let line_scaling = context.line_spacing * context.font_size as f32;
+        return (self.size.y / line_scaling) as usize;
+    }
+
+    fn check_selection_gap_up(&mut self, context: &Context) {
+        let selection = self.selections.last().unwrap();
+        let line_number = self.line_number_from_index(selection.primary_index);
+
+        if line_number < self.vertical_scroll + context.selection_gap {
+            match line_number > context.selection_gap {
+                true => self.vertical_scroll = line_number - context.selection_gap,
+                false => self.vertical_scroll = 0,
+            }
+        }
+    }
+
+    fn check_selection_gap_down(&mut self, context: &Context) {
+        let selection = self.selections.last().unwrap();
+        let line_number = self.line_number_from_index(selection.primary_index);
+        let visible_line_count = self.visible_line_count(context) - 1;
+
+        if line_number + context.selection_gap > self.vertical_scroll + visible_line_count {
+            self.vertical_scroll += line_number + context.selection_gap - self.vertical_scroll - visible_line_count;
+        }
+    }
+
     fn move_selection_left(&mut self, index: usize) -> bool {
         if self.selections[index].primary_index > 0 {
             self.selections[index].primary_index -= 1;
@@ -404,7 +431,7 @@ impl Editor {
         self.parse();
     }
 
-    fn newline_down(&mut self) {
+    fn newline_down(&mut self, context: &Context) {
         for index in self.selection_start()..self.selections.len() {
             self.move_selection_to_last(index);
             self.move_selection_to_end(index);
@@ -427,6 +454,7 @@ impl Editor {
             self.reset_selection(index);
         }
 
+        self.check_selection_gap_down(context);
         self.parse();
     }
 
@@ -434,20 +462,12 @@ impl Editor {
         match self.mode {
 
             SelectionMode::Character => {
-                let mut reparse = false;
-
                 for index in self.selection_start()..self.selections.len() {
                     if self.is_selection_extended(index) {
                         self.delete_selected(index);
-                        reparse = true;
                     } else if self.move_selection_left(index) {
                         self.delete_selected_primary(index);
-                        reparse = true;
                     }
-                }
-
-                if reparse {
-                    self.parse();
                 }
             },
 
@@ -460,33 +480,24 @@ impl Editor {
                     self.move_secondary_to_start(context, true, index);
                     self.move_selection_to_end(index);
                 }
-
-                self.parse();
             },
         }
 
+        self.check_selection_gap_up(context);
         //self.merge_overlapping_selections();
-        //self.check_selection_gap_up(context, self.selections.len() - 1);
+        self.parse();
     }
 
     fn delete(&mut self, context: &Context) {
         match self.mode {
 
             SelectionMode::Character => {
-                let mut reparse = false;
-
                 for index in self.selection_start()..self.selections.len() {
                     if self.is_selection_extended(index) {
                         self.delete_selected(index);
-                        reparse = true;
                     } else if !self.is_selection_end_of_buffer(index) {
                         self.delete_selected_primary(index);
-                        reparse = true;
                     }
-                }
-
-                if reparse {
-                    self.parse();
                 }
             },
 
@@ -499,12 +510,12 @@ impl Editor {
                     self.move_secondary_to_start(context, true, index);
                     self.move_selection_to_end(index);
                 }
-
-                self.parse();
             },
         }
 
+        self.check_selection_gap_up(context);
         //self.merge_overlapping_selections();
+        self.parse();
     }
 
     fn delete_line(&mut self, context: &Context) {
@@ -522,8 +533,6 @@ impl Editor {
 
                     self.delete_selected(index);
                 }
-
-                self.parse();
             },
 
             SelectionMode::Token => {
@@ -535,12 +544,12 @@ impl Editor {
                     self.move_secondary_to_start(context, true, index);
                     self.move_selection_to_end(index);
                 }
-
-                self.parse();
             },
         }
 
+        self.check_selection_gap_up(context);
         //self.merge_overlapping_selections();
+        self.parse();
     }
 
     fn move_left(&mut self, context: &Context) {
@@ -563,8 +572,8 @@ impl Editor {
             SelectionMode::Line => return,
         }
 
+        self.check_selection_gap_up(context);
         //self.merge_overlapping_selections();
-        //self.check_selection_gap_up(context, self.selections.len() - 1);
     }
 
     fn move_right(&mut self, context: &Context) {
@@ -587,8 +596,8 @@ impl Editor {
             SelectionMode::Line => return,
         }
 
+        //self.check_selection_gap_down(context);
         //self.merge_overlapping_selections();
-        //self.check_selection_gap_up(context, self.selections.len() - 1);
     }
 
     fn move_up(&mut self, context: &Context) {
@@ -621,8 +630,8 @@ impl Editor {
             },
         }
 
+        self.check_selection_gap_up(context);
         //self.merge_overlapping_selections();
-        //self.check_selection_gap_up(context, self.selections.len() - 1);
     }
 
     fn move_down(&mut self, context: &Context) {
@@ -655,8 +664,8 @@ impl Editor {
             },
         }
 
+        self.check_selection_gap_down(context);
         //self.merge_overlapping_selections();
-        //self.check_selection_gap_down(context, self.selections.len() - 1);
     }
 
     fn extend_left(&mut self, context: &Context) {
@@ -675,8 +684,8 @@ impl Editor {
             SelectionMode::Line => return,
         }
 
+        self.check_selection_gap_up(context);
         //self.merge_overlapping_selections();
-        //self.check_selection_gap_up(context, self.selections.len() - 1);
     }
 
     fn extend_right(&mut self, context: &Context) {
@@ -695,8 +704,8 @@ impl Editor {
             SelectionMode::Line => return,
         }
 
+        self.check_selection_gap_down(context);
         //self.merge_overlapping_selections();
-        //self.check_selection_gap_down(context, self.selections.len() - 1);
     }
 
     fn extend_up(&mut self, context: &Context) {
@@ -728,8 +737,8 @@ impl Editor {
             },
         }
 
+        self.check_selection_gap_up(context);
         //self.merge_overlapping_selections();
-        //self.check_selection_gap_up(context, self.selections.len() - 1);
     }
 
     fn extend_down(&mut self, context: &Context) {
@@ -761,8 +770,8 @@ impl Editor {
             },
         }
 
+        self.check_selection_gap_down(context);
         //self.merge_overlapping_selections();
-        //self.check_selection_gap_down(context, self.selections.len() - 1);
     }
 
     fn move_to_end(&mut self) {
@@ -856,7 +865,7 @@ impl Editor {
     }
 
     fn line_count(&self) -> usize {
-        return self.line_from_index(self.last_buffer_index());
+        return self.line_number_from_index(self.last_buffer_index());
     }
 
     fn index_from_line(&self, line: usize) -> usize {
@@ -875,7 +884,7 @@ impl Editor {
         return self.last_buffer_index();
     }
 
-    fn line_from_index(&self, index: usize) -> usize {
+    fn line_number_from_index(&self, index: usize) -> usize {
         let mut line_count = 0;
 
         for current_index in 0..self.text_buffer.len() {
@@ -998,7 +1007,7 @@ impl Editor {
         }
     }
 
-    fn add_selection(&mut self) {
+    fn add_selection(&mut self, context: &Context) {
         match self.mode {
 
             SelectionMode::Character => {
@@ -1023,6 +1032,8 @@ impl Editor {
                 self.move_selection_to_end(self.selections.len() - 1);
             },
         }
+
+        self.check_selection_gap_down(context);
     }
 
     fn index_has_selection(&self, primary_index: usize, secondary_index: usize) -> bool {
@@ -1049,7 +1060,7 @@ impl Editor {
         }
     }
 
-    fn select_next(&mut self) {
+    fn select_next(&mut self, context: &Context) {
         match self.mode {
 
             SelectionMode::Character => {
@@ -1077,9 +1088,12 @@ impl Editor {
             SelectionMode::Line => {
             },
         }
+
+        self.check_selection_gap_up(context);
+        self.check_selection_gap_down(context);
     }
 
-    fn duplicate_up(&mut self) {
+    fn duplicate_up(&mut self, context: &Context) {
         match self.mode {
 
             SelectionMode::Character => {
@@ -1107,9 +1121,11 @@ impl Editor {
             SelectionMode::Line => {
             },
         }
+
+        self.check_selection_gap_up(context);
     }
 
-    fn duplicate_down(&mut self) {
+    fn duplicate_down(&mut self, context: &Context) {
         match self.mode {
 
             SelectionMode::Character => {
@@ -1123,6 +1139,8 @@ impl Editor {
             SelectionMode::Line => {
             },
         }
+
+        self.check_selection_gap_down(context);
     }
 
     pub fn handle_action(&mut self, context: &Context, action: Action) -> Status<bool> {
@@ -1284,9 +1302,9 @@ impl Editor {
 
             Action::ExtendEnd => handle_return!(self.extend_end()),
 
-            Action::DuplicateUp => handle_return!(self.duplicate_up()),
+            Action::DuplicateUp => handle_return!(self.duplicate_up(context)),
 
-            Action::DuplicateDown => handle_return!(self.duplicate_down()),
+            Action::DuplicateDown => handle_return!(self.duplicate_down(context)),
 
             Action::Append => handle_return!(self.append()),
 
@@ -1294,13 +1312,13 @@ impl Editor {
 
             Action::NewlineUp => handle_return!(self.newline_up(context)),
 
-            Action::NewlineDown => handle_return!(self.newline_down()),
+            Action::NewlineDown => handle_return!(self.newline_down(context)),
 
-            Action::AddSelection => handle_return!(self.add_selection()),
+            Action::AddSelection => handle_return!(self.add_selection(context)),
 
-            Action::SelectNext => handle_return!(self.select_next()),
+            Action::SelectNext => handle_return!(self.select_next(context)),
 
-            Action::Abort => handle_return!(self.drop_selections()),
+            Action::Abort => handle_return!(self.drop_selections(context)),
 
             Action::Remove => handle_return!(self.remove(context)),
 
@@ -1416,13 +1434,15 @@ impl Editor {
         self.adding_selection = false;
     }
 
-    fn drop_selections(&mut self) {
+    fn drop_selections(&mut self, context: &Context) {
         for _index in 0..self.selections.len() - 1 {
             self.selections.remove(1);
         }
 
         // reset that selection
         self.adding_selection = false;
+        self.check_selection_gap_up(context);
+        self.check_selection_gap_down(context);
     }
 
     fn set_selections_from_string(&mut self, string: &SharedString) {
@@ -1630,7 +1650,7 @@ impl Editor {
 
         for index in 0..self.selections.len() {
             let start_index = self.selection_smallest_index(index);
-            let mut top_offset = self.line_from_index(start_index) as f32 * line_scaling + context.theme.panel.top_offset * context.font_size as f32;
+            let mut top_offset = self.line_number_from_index(start_index) as f32 * line_scaling + context.theme.panel.top_offset * context.font_size as f32;
             let mut draw_line = true;
 
             for offset in 0..self.selection_length(index) {
@@ -1694,13 +1714,14 @@ impl Editor {
 
         for index in 0..self.selections.len() {
             let start_index = self.selection_smallest_index(index);
-            let mut top_offset = self.line_from_index(start_index) as f32 * line_scaling + context.theme.panel.top_offset * context.font_size as f32;
+            let mut current_line = self.line_number_from_index(start_index);
+            let mut top_offset = current_line as f32 * line_scaling + context.theme.panel.top_offset * context.font_size as f32;
             let mut left_offset = self.offset_from_index(start_index) as f32 * character_scaling + line_number_offset + context.theme.panel.left_offset * context.font_size as f32;
             let selection_length = self.selection_length(index);
 
             for offset in 0..selection_length {
 
-                if top_offset >= scroll_offset {
+                if current_line >= self.vertical_scroll {
                     let mut base = if selection_length == 1 {
                         &mut single_selection_base
                     } else if offset == 0 {
@@ -1734,6 +1755,7 @@ impl Editor {
                 if self.text_buffer[start_index + offset].is_newline() {
                     left_offset = line_number_offset + context.theme.panel.left_offset * context.font_size as f32;
                     top_offset += line_scaling;
+                    current_line += 1;
                 } else {
                     left_offset += character_scaling;
                 }
