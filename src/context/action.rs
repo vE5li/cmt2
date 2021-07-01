@@ -11,7 +11,6 @@ pub enum Action {
     TogglePreserveLines,
     ToggleUnfocusedSelections,
     ToggleFocusBar,
-
     CharacterMode,
     TokenMode,
     LineMode,
@@ -30,35 +29,26 @@ pub enum Action {
     AddSelection,
     SelectNext,
     FocusNext,
-
     Action,
-
     Abort,
     Confirm,
     Remove,
     Delete,
     DeleteLine,
-
     ZoomIn,
     ZoomOut,
-
     NewEditor,
     CloseWindow,
-
     PageUp,
     PageDown,
     ExtendPageUp,
     ExtendPageDown,
-
     DuplicateUp,
     DuplicateDown,
-
     Insert,
     Append,
-
     NewlineUp,
     NewlineDown,
-
     ExtendLeft,
     ExtendRight,
     ExtendUp,
@@ -85,7 +75,6 @@ impl Action {
             "highlighting" => return success!(Action::ToggleHighlighting),
             "unfocused_selections" => return success!(Action::ToggleUnfocusedSelections),
             "focus_bar" => return success!(Action::ToggleFocusBar),
-
             "character_mode" => return success!(Action::CharacterMode),
             "token_mode" => return success!(Action::TokenMode),
             "line_mode" => return success!(Action::LineMode),
@@ -100,35 +89,26 @@ impl Action {
             "add_selection" => return success!(Action::AddSelection),
             "select_next" => return success!(Action::SelectNext),
             "focus_next" => return success!(Action::FocusNext),
-
             "action" => return success!(Action::Action),
-
             "abort" => return success!(Action::Abort),
             "confirm" => return success!(Action::Confirm),
             "remove" => return success!(Action::Remove),
             "delete" => return success!(Action::Delete),
             "delete_line" => return success!(Action::DeleteLine),
-
             "zoom_in" => return success!(Action::ZoomIn),
             "zoom_out" => return success!(Action::ZoomOut),
-
             "new_editor" => return success!(Action::NewEditor),
             "close_window" => return success!(Action::CloseWindow),
-
             "page_up" => return success!(Action::PageUp),
             "page_down" => return success!(Action::PageDown),
             "extend_page_up" => return success!(Action::ExtendPageUp),
             "extend_page_down" => return success!(Action::ExtendPageDown),
-
             "duplicate_up" => return success!(Action::DuplicateUp),
             "duplicate_down" => return success!(Action::DuplicateDown),
-
             "insert" => return success!(Action::Insert),
             "append" => return success!(Action::Append),
-
             "newline_up" => return success!(Action::NewlineUp),
             "newline_down" => return success!(Action::NewlineDown),
-
             "left" => return success!(Action::Left),
             "right" => return success!(Action::Right),
             "up" => return success!(Action::Up),
@@ -145,8 +125,25 @@ impl Action {
             "paste" => return success!(Action::Paste),
             "cut" => return success!(Action::Cut),
             "rotate" => return success!(Action::Rotate),
-
             invalid => return error!(string!("invalid action {}", invalid)),
+        }
+    }
+
+    pub fn is_global(&self) -> bool {
+        match self {
+            Action::Quit => return true,
+            Action::ToggleAppendLines => return true,
+            Action::ToggleStatusBar => return true,
+            Action::ToggleLineNumbers => return true,
+            Action::ToggleSelectionLines => return true,
+            Action::ToggleHighlighting => return true,
+            Action::ToggleUnfocusedSelections => return true,
+            Action::ToggleFocusBar => return true,
+            Action::ZoomIn => return true,
+            Action::ZoomOut => return true,
+            Action::NewEditor => return true,
+            Action::CloseWindow => return true,
+            _unhandled => return false,
         }
     }
 }

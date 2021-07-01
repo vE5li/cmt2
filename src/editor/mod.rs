@@ -22,7 +22,7 @@ use self::token::EditorToken;
 macro_rules! handle_return {
     ($expression: expr) => ({
         $expression;
-        return success!(true);
+        return None;
     })
 }
 
@@ -83,7 +83,7 @@ impl Editor {
 
         // set language for specific file if specified and only load if it changed
         let pieces = file_name.split(&SharedString::from("."), true);
-        self.language = if pieces.len() > 1 {
+        let language = if pieces.len() > 1 {
             match pieces.last().unwrap().printable().as_ref() {
                 "rs" => SharedString::from("rust"),
                 "cip" => SharedString::from("cipher"),
@@ -96,19 +96,34 @@ impl Editor {
             SharedString::from("none")
         };
 
-        let tokenizer = confirm!(Self::load_language(&self.language));
+        let tokenizer = confirm!(Self::load_language(&language));
         let mut text_buffer = confirm!(read_file(&file_name));
 
-        if text_buffer.is_empty() || !self.text_buffer[self.text_buffer.len() - 1].is_newline() {
-            self.text_buffer.push(Character::from_char('\n'));
+        if text_buffer.is_empty() || !text_buffer[text_buffer.len() - 1].is_newline() {
+            text_buffer.push(Character::from_char('\n'));
         }
 
         self.file_name = Some(file_name);
         self.tokenizer = tokenizer;
         self.text_buffer = text_buffer;
+        self.language = language;
         self.reset();
 
         return self.parse();
+    }
+
+    pub fn save_file(&mut self) -> Status<()> {
+        let file_name = match &self.file_name {
+            Some(file_name) => format_shared!("{}.new", file_name), // temporary
+            None => {
+                let error_message = "cannot save file without file name (yet)";
+                self.dialogue_mode = DialogueMode::Error(SharedString::from(error_message));
+                return error!(string!(error_message));
+            },
+        };
+
+
+        return write_file(&file_name, &self.text_buffer);
     }
 
     pub fn reset(&mut self) {
@@ -1135,7 +1150,7 @@ impl Editor {
         self.check_selection_gaps(context);
     }
 
-    pub fn handle_action(&mut self, context: &Context, action: Action) -> Status<bool> {
+    pub fn handle_action(&mut self, context: &Context, action: Action) -> Option<Action> {
 
         match self.dialogue_mode.clone() {
 
@@ -1144,27 +1159,30 @@ impl Editor {
             DialogueMode::Error(..) => self.dialogue_mode = DialogueMode::None,
 
             DialogueMode::OpenFile => {
-                let (handled, status) = self.open_file_dialogue.handle_action(context, action);
+                let (action_handled, status) = self.open_file_dialogue.handle_action(context, action);
 
                 if let Some(completed) = status {
                     if completed {
                         let file_name = self.open_file_dialogue.file_name_box.get();
                         if let Status::Error(error) = self.open_file(file_name.clone()) { // handle the actual error
                             self.dialogue_mode = DialogueMode::Error(format_shared!("missing file {}", file_name));
-                            return success!(handled);
+                            return None;
                         }
                     }
 
                     self.dialogue_mode = DialogueMode::None;
                 }
 
-                return success!(handled);
+                match action_handled {
+                    true => return None,
+                    false =>  return Some(action),
+                }
             },
 
             DialogueMode::SetLanguage => {
-                let (handled, status) = self.set_language_dialogue.handle_action(context, action);
-                if let Some(completed) = status {
+                let (action_handled, status) = self.set_language_dialogue.handle_action(context, action);
 
+                if let Some(completed) = status {
                     if completed && self.language != self.set_language_dialogue.language_box.get() {
                         let new_language = self.set_language_dialogue.language_box.get();
 
@@ -1179,20 +1197,25 @@ impl Editor {
                             Status::Error(error) => { // handle the actual error
                                 self.dialogue_mode = DialogueMode::Error(format_shared!("missing language file {}.data", new_language));
                                 self.set_language_dialogue.language_box.clear();
-                                return success!(handled);
                             }
                         }
+
+                        return None;
                     }
 
                     self.set_language_dialogue.language_box.clear();
                     self.dialogue_mode = DialogueMode::None;
                 }
-                return success!(handled);
+
+                match action_handled {
+                    true => return None,
+                    false =>  return Some(action),
+                }
             },
 
             DialogueMode::FindReplace(selections) => {
 
-                let (handled, status) = self.find_replace_dialogue.handle_action(action);
+                let (action_handled, status) = self.find_replace_dialogue.handle_action(action);
 
                 if let Some(completed) = status {
 
@@ -1227,30 +1250,46 @@ impl Editor {
                     }
 
                     self.dialogue_mode = DialogueMode::None;
-                    return success!(handled);
+                    return None;
                 }
 
-                if handled {
+                if action_handled {
                     self.update_find_replace();
                 }
 
-                return success!(handled);
+                match action_handled {
+                    true => return None,
+                    false =>  return Some(action),
+                }
             },
 
             DialogueMode::Action => {
-                let (handled, status) = self.action_dialogue.handle_action(context, action);
+                let (action_handled, status) = self.action_dialogue.handle_action(context, action);
+
                 if let Some(completed) = status {
                     let literal = self.action_dialogue.action_box.get();
                     self.action_dialogue.action_box.clear();
                     self.dialogue_mode = DialogueMode::None;
 
                     if completed {
-                        let action = confirm!(Action::from_literal(&literal));
-                        self.handle_action(context, action);
-                        return success!(true);
+                        match Action::from_literal(&literal) {
+
+                            Status::Success(action) => {
+                                return self.handle_action(context, action);
+                            },
+
+                            Status::Error(error) => { // handle the actual error
+                                self.dialogue_mode = DialogueMode::Error(format_shared!("invalid action {}", literal));
+                                self.set_language_dialogue.language_box.clear();
+                            }
+                        }
                     }
                 }
-                return success!(handled);
+
+                match action_handled {
+                    true => return None,
+                    false =>  return Some(action),
+                }
             },
         }
 
@@ -1263,6 +1302,10 @@ impl Editor {
             Action::LineMode => handle_return!(self.line_mode(context)),
 
             Action::OpenFile => handle_return!(self.open_open_file_dialogue()),
+
+            Action::SaveFile => handle_return!(self.save_file()),
+
+            //Action::SaveAllFiles => handle_me_in_core,
 
             Action::SetLanguage => handle_return!(self.open_set_language_dialogue()),
 
@@ -1323,12 +1366,12 @@ impl Editor {
             Action::Confirm => {
                 if self.adding_selection {
                     self.adding_selection = false;
-                    return success!(true);
+                    return None;
                 }
-                return success!(false);
+                return Some(Action::Confirm);
             },
 
-            _other => return success!(false),
+            unhandled => return Some(unhandled),
         }
 
         //match input {

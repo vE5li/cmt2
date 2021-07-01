@@ -1,10 +1,8 @@
 mod action;
 
 use seamonkey::*;
-use context::Context;
+use context::{ Context, Action };
 use window::PoetWindow;
-
-pub use self::action::CoreAction;
 
 pub struct Instance<'i> {
     windows: Vec<PoetWindow<'i>>,
@@ -45,26 +43,61 @@ impl<'i> Instance<'i> {
 
             for action in self.windows[index].handle_input(&self.context) {
                 match action {
-                    CoreAction::CloseWindow => {
+
+                    Action::CloseWindow => {
+                        self.windows[index].close();
                         self.windows.remove(index);
                         continue 'handle;
                     },
-                    CoreAction::NewEditor => {
+
+                    Action::NewEditor => {
                         display!(self.new_editor());
                     },
-                    CoreAction::ZoomIn => {
+
+                    Action::ZoomIn => {
                         self.context.zoom_in();
                         //self.check_selection_gaps();
                         force_rerender = true;
                     },
-                    CoreAction::ZoomOut => {
+
+                    Action::ZoomOut => {
                         self.context.zoom_out();
                         force_rerender = true;
                     },
-                    CoreAction::Quit => {
-                        //TODO:
-                        //self.windows.iter_mut().for_each(|window| window.close());
+
+                    Action::ToggleAppendLines => {
+                        panic!("implement");
                     },
+
+                    Action::ToggleStatusBar => {
+                        panic!("implement");
+                    },
+
+                    Action::ToggleLineNumbers => {
+                        panic!("implement");
+                    },
+
+                    Action::ToggleSelectionLines => {
+                        panic!("implement");
+                    },
+
+                    Action::ToggleHighlighting => {
+                        panic!("implement");
+                    },
+
+                    Action::ToggleUnfocusedSelections => {
+                        panic!("implement");
+                    },
+
+                    Action::ToggleFocusBar => {
+                        panic!("implement");
+                    },
+
+                    Action::Quit => {
+                        panic!("implement");
+                    },
+
+                    _unhandled => { },
                 }
             }
 

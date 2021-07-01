@@ -1,7 +1,6 @@
 use sfml::{ graphics::*, system::*, window::* };
 
 use seamonkey::*;
-use core::CoreAction;
 use context::{ Context, Action };
 use input::*;
 use editor::Editor;
@@ -43,64 +42,41 @@ impl<'w> PoetWindow<'w> {
         });
     }
 
-    pub fn handle_input(&mut self, context: &Context) -> Vec<CoreAction> {
+    pub fn handle_input(&mut self, context: &Context) -> Vec<Action> {
         let mut action_queue = Vec::new();
         let mut handled = false;
 
         'handle: while let Some(event) = self.window.poll_event() {
             match event {
 
-                Event::Closed => action_queue.push(CoreAction::CloseWindow),
+                Event::Closed => action_queue.push(Action::CloseWindow),
 
                 Event::KeyPressed { code, shift, ctrl, alt, system } => {
                     if !is_modifier_key(code) {
                         let modifiers = Modifiers::from(shift, ctrl, alt, system);
                         let key_event = KeyEvent::new(code, modifiers);
+                        let mut unhandled_actions = Vec::new();
 
-                        println!("modifiers: {:?}", modifiers);
-                        println!("key event: {:?}", key_event);
+                        //println!("modifiers: {:?}", modifiers);
+                        //println!("key event: {:?}", key_event);
 
                         for action in context.get_matching_actions(&key_event) {
 
-                            println!("action: {:?}", action);
+                            //println!("action: {:?}", action);
 
-                            if display!(self.editor.handle_action(context, action)) {
+                            if let Some(unhandled_action) = self.editor.handle_action(context, action) {
+                                if unhandled_action.is_global() {
+                                    unhandled_actions.push(unhandled_action);
+                                    handled = true;
+                                }
+                            } else {
                                 self.rerender(context);
                                 handled = true;
                                 continue 'handle;
                             }
-
-                            // put actions into a queue instead?
-                            match action {
-
-                                Action::NewEditor => {
-                                    action_queue.push(CoreAction::NewEditor);
-                                    handled = true;
-                                },
-
-                                Action::ZoomIn => {
-                                    action_queue.push(CoreAction::ZoomIn);
-                                    handled = true;
-                                },
-
-                                Action::ZoomOut => {
-                                    action_queue.push(CoreAction::ZoomOut);
-                                    handled = true;
-                                },
-
-                                Action::Quit => {
-                                    action_queue.push(CoreAction::Quit);
-                                    handled = true;
-                                },
-
-                                Action::CloseWindow => {
-                                    self.close();
-                                    handled = true;
-                                },
-
-                                unhandeled => {},
-                            }
                         }
+
+                        action_queue.extend_from_slice(unhandled_actions.as_slice());
                     }
                 },
 
