@@ -1207,8 +1207,8 @@ impl Editor {
                                 self.parse();
                             },
 
-                            Status::Error(error) => { // handle the actual error
-                                self.dialogue_mode = DialogueMode::Error(format_shared!("missing language file {}.data", new_language));
+                            Status::Error(error) => {
+                                self.set_error_state(error);
                                 self.set_language_dialogue.language_box.clear();
                             }
                         }
@@ -1291,8 +1291,8 @@ impl Editor {
                                 return self.handle_action(context, action);
                             },
 
-                            Status::Error(error) => { // handle the actual error
-                                self.dialogue_mode = DialogueMode::Error(format_shared!("invalid action {}", literal));
+                            Status::Error(error) => {
+                                self.set_error_state(error);
                                 self.set_language_dialogue.language_box.clear();
                             }
                         }
@@ -1586,7 +1586,7 @@ impl Editor {
 
         let character_scaling = context.character_spacing * context.font_size as f32;
         let popup_height = context.theme.popup.height * context.font_size as f32;
-        let corner_radius = context.theme.popup.corner_radius;
+        let corner_radius = context.theme.popup.corner_radius * popup_height;
 
         let rounded = RoundedRectangle::new(size.x, popup_height, corner_radius, corner_radius, corner_radius, corner_radius);
         let mut error_base = CustomShape::new(Box::new(rounded));

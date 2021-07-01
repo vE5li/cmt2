@@ -121,7 +121,7 @@ impl TextBox {
 
         let character_scaling = context.character_spacing * context.font_size as f32;
         let dialogue_height = context.theme.dialogue.height * context.font_size as f32;
-        let corner_radius = context.theme.dialogue.corner_radius;
+        let corner_radius = context.theme.dialogue.corner_radius * dialogue_height;
 
         let rounded = RoundedRectangle::new(width, dialogue_height, corner_radius, corner_radius, corner_radius, corner_radius);
         let mut text_box_base = CustomShape::new(Box::new(rounded));
