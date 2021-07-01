@@ -11,18 +11,31 @@ macro_rules! get_component {
     })
 }
 
+macro_rules! try_component {
+    ($color:expr, $index:expr, $component:expr) => ({
+        if let Some(component) = confirm!($color.index(&integer!($index))) {
+            let component = unpack_integer!(component, string!("invalid type for {} component", $component));
+            ensure!(component >= 0 && component <= 255, string!("invalid range for {} component", $component));
+            component as u8
+        } else {
+            255
+        }
+    })
+}
+
 macro_rules! get_color {
-    ($theme:expr, $name:expr, $r:expr, $g:expr, $b:expr) => ({
+    ($theme:expr, $name:expr, $r:expr, $g:expr, $b:expr, $a:expr) => ({
         match confirm!($theme.index(&identifier!($name))) {
 
             Some(color) => {
                 let red = get_component!(color, 1, "red");
                 let green = get_component!(color, 2, "green");
                 let blue = get_component!(color, 3, "blue");
-                Color::rgb(red, green, blue)
+                let alpha = try_component!(color, 4, "alpha");
+                Color::rgba(red, green, blue, alpha)
             },
 
-            None => Color::rgb($r, $g, $b),
+            None => Color::rgba($r, $g, $b, $a),
         }
     })
 }
@@ -127,18 +140,18 @@ impl PanelTheme {
 
     pub fn from(theme: &Data) -> Status<Self> {
         return success!(Self {
-            border: get_color!(theme, "border", 60, 60, 60),
-            background: get_color!(theme, "background", 35, 35, 35),
-            text: get_color!(theme, "text", 160, 160, 160),
-            comment: get_color!(theme, "comment", 100, 100, 100),
-            string: get_color!(theme, "string", 100, 150, 140),
-            character: get_color!(theme, "character", 35, 155, 140),
-            integer: get_color!(theme, "integer", 45, 110, 135),
-            float: get_color!(theme, "float", 45, 110, 135),
-            keyword: get_color!(theme, "keyword", 145, 100, 145),
-            operator: get_color!(theme, "operator", 130, 130, 130),
-            identifier: get_color!(theme, "identifier", 160, 160, 160),
-            type_identifier: get_color!(theme, "type", 210, 100, 150),
+            border: get_color!(theme, "border", 60, 60, 60, 255),
+            background: get_color!(theme, "background", 35, 35, 35, 255),
+            text: get_color!(theme, "text", 160, 160, 160, 255),
+            comment: get_color!(theme, "comment", 100, 100, 100, 255),
+            string: get_color!(theme, "string", 100, 150, 140, 255),
+            character: get_color!(theme, "character", 35, 155, 140, 255),
+            integer: get_color!(theme, "integer", 45, 110, 135, 255),
+            float: get_color!(theme, "float", 45, 110, 135, 255),
+            keyword: get_color!(theme, "keyword", 145, 100, 145, 255),
+            operator: get_color!(theme, "operator", 130, 130, 130, 255),
+            identifier: get_color!(theme, "identifier", 160, 160, 160, 255),
+            type_identifier: get_color!(theme, "type", 210, 100, 150, 255),
             text_style: get_style!(theme, "text_style", TextStyle::REGULAR),
             comment_style: get_style!(theme, "comment_style", TextStyle::REGULAR),
             string_style: get_style!(theme, "string_style", TextStyle::REGULAR),
@@ -150,7 +163,7 @@ impl PanelTheme {
             identifier_style: get_style!(theme, "identifier_style", TextStyle::REGULAR),
             type_identifier_style: get_style!(theme, "type_style", TextStyle::REGULAR),
             error_style: get_style!(theme, "error_style", TextStyle::BOLD),
-            error: get_color!(theme, "error", 160, 60, 60),
+            error: get_color!(theme, "error", 160, 60, 60, 255),
             //radius: get_float!(theme, "radius", 0.2),
             //gap: get_float!(theme, "gap", 0.5),
             left_offset: get_float!(theme, "left_offset", 0.4),
@@ -176,8 +189,8 @@ impl LineNumberTheme {
 
     pub fn from(theme: &Data) -> Status<Self> {
         return success!(Self {
-            background: get_color!(theme, "background", 45, 45, 45),
-            text: get_color!(theme, "text", 100, 100, 100),
+            background: get_color!(theme, "background", 45, 45, 45, 255),
+            text: get_color!(theme, "text", 100, 100, 100, 255),
             text_style: get_style!(theme, "text_style", TextStyle::REGULAR),
             width: get_float!(theme, "width", 5.0),
             offset: get_float!(theme, "offset", 0.0),
@@ -205,12 +218,12 @@ impl DialogueTheme {
 
     pub fn from(theme: &Data) -> Status<Self> {
         return success!(Self {
-            background: get_color!(theme, "background", 45, 45, 45),
-            focused: get_color!(theme, "focused", 70, 70, 70),
-            ghost: get_color!(theme, "ghost", 70, 70, 70),
-            text: get_color!(theme, "text", 90, 90, 90),
-            focused_text: get_color!(theme, "focused_text", 130, 130, 130),
-            focused_ghost: get_color!(theme, "focused_ghost", 100, 100, 100),
+            background: get_color!(theme, "background", 45, 45, 45, 255),
+            focused: get_color!(theme, "focused", 70, 70, 70, 255),
+            ghost: get_color!(theme, "ghost", 70, 70, 70, 255),
+            text: get_color!(theme, "text", 90, 90, 90, 255),
+            focused_text: get_color!(theme, "focused_text", 130, 130, 130, 255),
+            focused_ghost: get_color!(theme, "focused_ghost", 100, 100, 100, 255),
             text_style: get_style!(theme, "text_style", TextStyle::REGULAR),
             ghost_style: get_style!(theme, "ghost_style", TextStyle::ITALIC),
             height: get_float!(theme, "height", 1.5),
@@ -228,7 +241,7 @@ impl FocusBarTheme {
 
     pub fn from(theme: &Data) -> Status<Self> {
         return success!(Self {
-            background: get_color!(theme, "background", 130, 80, 100),
+            background: get_color!(theme, "background", 130, 80, 100, 255),
             height: get_float!(theme, "height", 0.5),
         })
     }
@@ -247,8 +260,8 @@ impl StatusBarTheme {
 
     pub fn from(theme: &Data) -> Status<Self> {
         return success!(Self {
-            background: get_color!(theme, "background", 130, 80, 100),
-            text: get_color!(theme, "text", 100, 100, 100),
+            background: get_color!(theme, "background", 130, 80, 100, 255),
+            text: get_color!(theme, "text", 100, 100, 100, 255),
             text_style: get_style!(theme, "text_style", TextStyle::REGULAR),
             height: get_float!(theme, "height", 1.5),
             offset: get_float!(theme, "offset", 2.0),
@@ -271,11 +284,11 @@ impl SelectionTheme {
 
     pub fn from(theme: &Data) -> Status<Self> {
         return success!(Self {
-            background: get_color!(theme, "background", 115, 115, 115),
-            text: get_color!(theme, "text", 35, 35, 35),
-            new_background: get_color!(theme, "new_background", 145, 105, 130),
-            new_text: get_color!(theme, "new_text", 35, 35, 35),
-            line: get_color!(theme, "line", 50, 50, 50),
+            background: get_color!(theme, "background", 115, 115, 115, 255),
+            text: get_color!(theme, "text", 35, 35, 35, 255),
+            new_background: get_color!(theme, "new_background", 145, 105, 130, 255),
+            new_text: get_color!(theme, "new_text", 35, 35, 35, 255),
+            line: get_color!(theme, "line", 50, 50, 50, 255),
             text_style: get_style!(theme, "text_style", TextStyle::BOLD),
             radius: get_float!(theme, "radius", 0.05),
         })
