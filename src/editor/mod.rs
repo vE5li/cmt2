@@ -177,24 +177,17 @@ impl Editor {
         return (self.size.y / line_scaling) as usize;
     }
 
-    fn check_selection_gap_up(&mut self, context: &Context) {
+    fn check_selection_gaps(&mut self, context: &Context) {
         let selection = self.selections.last().unwrap();
         let line_number = self.line_number_from_index(selection.primary_index);
+        let visible_line_count = self.visible_line_count(context) - 1;
 
         if line_number < self.vertical_scroll + context.selection_gap {
             match line_number > context.selection_gap {
                 true => self.vertical_scroll = line_number - context.selection_gap,
                 false => self.vertical_scroll = 0,
             }
-        }
-    }
-
-    fn check_selection_gap_down(&mut self, context: &Context) {
-        let selection = self.selections.last().unwrap();
-        let line_number = self.line_number_from_index(selection.primary_index);
-        let visible_line_count = self.visible_line_count(context) - 1;
-
-        if line_number + context.selection_gap > self.vertical_scroll + visible_line_count {
+        } else if line_number + context.selection_gap > self.vertical_scroll + visible_line_count {
             self.vertical_scroll += line_number + context.selection_gap - self.vertical_scroll - visible_line_count;
         }
     }
@@ -454,7 +447,7 @@ impl Editor {
             self.reset_selection(index);
         }
 
-        self.check_selection_gap_down(context);
+        self.check_selection_gaps(context);
         self.parse();
     }
 
@@ -483,7 +476,7 @@ impl Editor {
             },
         }
 
-        self.check_selection_gap_up(context);
+        self.check_selection_gaps(context);
         //self.merge_overlapping_selections();
         self.parse();
     }
@@ -513,7 +506,7 @@ impl Editor {
             },
         }
 
-        self.check_selection_gap_up(context);
+        self.check_selection_gaps(context);
         //self.merge_overlapping_selections();
         self.parse();
     }
@@ -547,7 +540,7 @@ impl Editor {
             },
         }
 
-        self.check_selection_gap_up(context);
+        self.check_selection_gaps(context);
         //self.merge_overlapping_selections();
         self.parse();
     }
@@ -572,7 +565,7 @@ impl Editor {
             SelectionMode::Line => return,
         }
 
-        self.check_selection_gap_up(context);
+        self.check_selection_gaps(context);
         //self.merge_overlapping_selections();
     }
 
@@ -596,7 +589,7 @@ impl Editor {
             SelectionMode::Line => return,
         }
 
-        //self.check_selection_gap_down(context);
+        //self.check_selection_gaps(context);
         //self.merge_overlapping_selections();
     }
 
@@ -630,7 +623,7 @@ impl Editor {
             },
         }
 
-        self.check_selection_gap_up(context);
+        self.check_selection_gaps(context);
         //self.merge_overlapping_selections();
     }
 
@@ -664,7 +657,7 @@ impl Editor {
             },
         }
 
-        self.check_selection_gap_down(context);
+        self.check_selection_gaps(context);
         //self.merge_overlapping_selections();
     }
 
@@ -684,7 +677,7 @@ impl Editor {
             SelectionMode::Line => return,
         }
 
-        self.check_selection_gap_up(context);
+        self.check_selection_gaps(context);
         //self.merge_overlapping_selections();
     }
 
@@ -704,7 +697,7 @@ impl Editor {
             SelectionMode::Line => return,
         }
 
-        self.check_selection_gap_down(context);
+        self.check_selection_gaps(context);
         //self.merge_overlapping_selections();
     }
 
@@ -737,7 +730,7 @@ impl Editor {
             },
         }
 
-        self.check_selection_gap_up(context);
+        self.check_selection_gaps(context);
         //self.merge_overlapping_selections();
     }
 
@@ -770,7 +763,7 @@ impl Editor {
             },
         }
 
-        self.check_selection_gap_down(context);
+        self.check_selection_gaps(context);
         //self.merge_overlapping_selections();
     }
 
@@ -1033,7 +1026,7 @@ impl Editor {
             },
         }
 
-        self.check_selection_gap_down(context);
+        self.check_selection_gaps(context);
     }
 
     fn index_has_selection(&self, primary_index: usize, secondary_index: usize) -> bool {
@@ -1089,8 +1082,7 @@ impl Editor {
             },
         }
 
-        self.check_selection_gap_up(context);
-        self.check_selection_gap_down(context);
+        self.check_selection_gaps(context);
     }
 
     fn duplicate_up(&mut self, context: &Context) {
@@ -1122,7 +1114,7 @@ impl Editor {
             },
         }
 
-        self.check_selection_gap_up(context);
+        self.check_selection_gaps(context);
     }
 
     fn duplicate_down(&mut self, context: &Context) {
@@ -1140,7 +1132,7 @@ impl Editor {
             },
         }
 
-        self.check_selection_gap_down(context);
+        self.check_selection_gaps(context);
     }
 
     pub fn handle_action(&mut self, context: &Context, action: Action) -> Status<bool> {
@@ -1441,8 +1433,7 @@ impl Editor {
 
         // reset that selection
         self.adding_selection = false;
-        self.check_selection_gap_up(context);
-        self.check_selection_gap_down(context);
+        self.check_selection_gaps(context);
     }
 
     fn set_selections_from_string(&mut self, string: &SharedString) {
