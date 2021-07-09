@@ -11,5 +11,4 @@
     preserve_lines  !true
     theme           "solarized"
     show_selections !true
-    focus_bar       !true
 }

@@ -1,0 +1,455 @@
+interface {
+
+    textbuffer {
+
+        background {
+            background_color [ 35 35 35 ]
+        }
+
+        selection {
+
+            single_selection {
+
+                field {
+                    background_color [ 90 90 90 ]
+                    corner_radius 0.2
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                text {
+                    text_color [ 150 150 150 ]
+                    text_style regular
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                alignment left
+                text_offset 0.0
+            }
+
+            first_selection {
+
+                field {
+                    background_color [ 90 90 90 ]
+                    corner_radius [ 0.2 0 0 0.2 ]
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                text {
+                    text_color [ 150 150 150 ]
+                    text_style regular
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                alignment left
+                text_offset 0.0
+            }
+
+            last_selection {
+
+                field {
+                    background_color [ 90 90 90 ]
+                    corner_radius [ 0 0.2 0.2 0 ]
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                text {
+                    text_color [ 150 150 150 ]
+                    text_style regular
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                alignment left
+                text_offset 0.0
+            }
+
+            center_selection {
+
+                field {
+                    background_color [ 90 90 90 ]
+                    corner_radius 0.0
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                text {
+                    text_color [ 150 150 150 ]
+                    text_style regular
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                alignment left
+                text_offset 0.0
+            }
+        }
+
+        new_selection {
+
+            single_selection {
+
+                field {
+                    background_color [ 150 150 150 ]
+                    corner_radius 0.2
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                text {
+                    text_color [ 35 35 35 ]
+                    text_style bold
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                alignment left
+                text_offset 0.0
+            }
+
+            first_selection {
+
+                field {
+                    background_color [ 150 150 150 ]
+                    corner_radius [ 0.2 0 0 0.2 ]
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                text {
+                    text_color [ 35 35 35 ]
+                    text_style bold
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                alignment left
+                text_offset 0.0
+            }
+
+            last_selection {
+
+                field {
+                    background_color [ 150 150 150 ]
+                    corner_radius [ 0 0.2 0.2 0 ]
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                text {
+                    text_color [ 35 35 35 ]
+                    text_style bold
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                alignment left
+                text_offset 0.0
+            }
+
+            center_selection {
+
+                field {
+                    background_color [ 150 150 150 ]
+                    corner_radius 0.0
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                text {
+                    text_color [ 35 35 35 ]
+                    text_style bold
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                alignment left
+                text_offset 0.0
+            }
+        }
+
+        status_bar {
+
+            field {
+                background_color [ 50 0 0 ]
+                corner_radius 0.5
+                border_width 0.5
+                border_color [ 0 0 0 ]
+            }
+
+            text {
+                text_color [ 0 0 200 ]
+                text_style regular
+                border_width 0.0
+                border_color [ 0 0 0 ]
+            }
+
+            alignment left
+            text_offset 2.0
+        }
+
+        line_number {
+
+            field {
+                background_color [ 60 60 60 ]
+                corner_radius 0.0
+                border_width 0.0
+                border_color [ 0 0 0 ]
+            }
+
+            text {
+                text_color [ 35 35 35 ]
+                text_style bold
+                border_width 0.0
+                border_color [ 0 0 0 ]
+            }
+
+            alignment left
+            text_offset 0.5
+        }
+
+        selection_line {
+            background_color [ 45 45 45 ]
+        }
+
+        text {
+            text_color [ 150 150 150 ]
+            text_style regular
+        }
+
+        offset [ 0.5 0.5 ]
+        line_number_width 5.0
+        line_number_offset 0.2
+    }
+
+    dialogue {
+
+        focused_textbox {
+
+            textbuffer {
+
+                background {
+                    background_color [ 29 185 84 ]
+                }
+
+                selection {
+
+                    single_selection {
+
+                        field {
+                            background_color [ 21 107 51 ]
+                            corner_radius 0.1
+                            border_width 0.0
+                            border_color [ 0 0 0 ]
+                        }
+
+                        text {
+                            text_color [ 153 216 175 ]
+                            text_style regular
+                            border_width 0.0
+                            border_color [ 0 0 0 ]
+                        }
+
+                        alignment left
+                        text_offset 0.0
+                    }
+
+                    first_selection {
+
+                        field {
+                            background_color [ 21 107 51 ]
+                            corner_radius [ 0.1 0 0 0.1 ]
+                            border_width 0.0
+                            border_color [ 0 0 0 ]
+                        }
+
+                        text {
+                            text_color [ 153 216 175 ]
+                            text_style regular
+                            border_width 0.0
+                            border_color [ 0 0 0 ]
+                        }
+
+                        alignment left
+                        text_offset 0.0
+                    }
+
+                    last_selection {
+
+                        field {
+                            background_color [ 21 107 51 ]
+                            corner_radius [ 0 0.1 0.1 0 ]
+                            border_width 0.0
+                            border_color [ 0 0 0 ]
+                        }
+
+                        text {
+                            text_color [ 153 216 175 ]
+                            text_style regular
+                            border_width 0.0
+                            border_color [ 0 0 0 ]
+                        }
+
+                        alignment left
+                        text_offset 0.0
+                    }
+
+                    center_selection {
+
+                        field {
+                            background_color [ 21 107 51 ]
+                            corner_radius 0.0
+                            border_width 0.0
+                            border_color [ 0 0 0 ]
+                        }
+
+                        text {
+                            text_color [ 153 216 175 ]
+                            text_style regular
+                            border_width 0.0
+                            border_color [ 0 0 0 ]
+                        }
+
+                        alignment left
+                        text_offset 0.0
+                    }
+                }
+
+                offset [ 1.0 0.0 ]
+            }
+
+            padding 0.0
+        }
+
+        unfocused_textbox {
+
+            textbuffer {
+
+                background {
+                    background_color [ 83 127 98 ]
+                }
+
+                offset [ 1.0 0.0 ]
+            }
+
+            padding 0.0
+        }
+
+        focused_element {
+
+            textfield {
+
+                field {
+                    background_color [ 29 185 84 ]
+                }
+
+                @text {
+                @    text_color [ 200 200 200 ]
+                @}
+
+                alignment left
+                text_offset 1.0
+            }
+
+            padding 0.0
+        }
+
+        unfocused_element {
+
+            textfield {
+
+                field {
+                    background_color [ 50 50 50 ]
+                }
+
+                text {
+                    text_color [ 125 125 125 ]
+                }
+
+                alignment left
+                text_offset 1.0
+            }
+
+            padding 0.0
+        }
+
+        height 1.5
+    }
+
+    message {
+
+        info {
+
+            textfield {
+
+                field {
+                    background_color [ 50 0 0 ]
+                    corner_radius 0.5
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                text {
+                    text_color [ 0 0 200 ]
+                    text_style regular
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                alignment left
+                text_offset 2.0
+            }
+
+            height 1.5
+        }
+
+        warning {
+
+            textfield {
+
+                field {
+                    background_color [ 100 0 0 ]
+                    corner_radius 0.5
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                text {
+                    text_color [ 0 0 200 ]
+                    text_style regular
+                    border_width 0.0
+                    border_color [ 0 0 0 ]
+                }
+
+                alignment left
+                text_offset 2.0
+            }
+
+            height 1.5
+        }
+
+        error {
+
+            textfield {
+
+                field {
+                    background_color [ 200 40 40 ]
+                }
+
+                text {
+                    text_color [ 30 30 30 ]
+                    text_style bold
+                }
+
+                alignment left
+                text_offset 2.0
+            }
+
+            height 1.5
+        }
+    }
+}

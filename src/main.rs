@@ -1,17 +1,16 @@
 extern crate seamonkey;
 extern crate sfml;
 
-mod graphics;
 mod input;
-mod context;
-mod core;
-mod window;
-mod editor;
+mod elements;
+mod dialogues;
+mod interface;
+mod system;
 
 use std::env::args;
 
 use seamonkey::*;
-use core::Instance;
+use system::Instance;
 
 fn main() {
     let mut instance = Instance::new(&args().collect());

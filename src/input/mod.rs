@@ -1,6 +1,7 @@
 mod modifiers;
 mod binding;
 mod event;
+mod action;
 
 use seamonkey::*;
 use sfml::window::Key;
@@ -8,6 +9,7 @@ use sfml::window::Key;
 pub use self::modifiers::Modifiers;
 pub use self::binding::Binding;
 pub use self::event::KeyEvent;
+pub use self::action::Action;
 
 pub fn is_modifier_key(key: Key) -> bool {
     match key {
