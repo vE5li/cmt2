@@ -3,7 +3,7 @@ use seamonkey::*;
 use elements::TextbufferContext;
 use interface::{ InterfaceTheme, InterfaceContext };
 use input::Action;
-use system::{ PoetWindow, ResourceManager };
+use system::{ PoetWindow, ResourceManager, LanguageManager };
 
 pub struct Instance<'i> {
     windows: Vec<PoetWindow<'i>>,
@@ -11,6 +11,8 @@ pub struct Instance<'i> {
     interface_theme: InterfaceTheme,
 
     resource_manager: ResourceManager,
+    language_manager: LanguageManager,
+    window_counter: usize,
 }
 
 impl<'i> Instance<'i> {
@@ -36,13 +38,16 @@ impl<'i> Instance<'i> {
             interface_theme: interface_theme,
 
             resource_manager: ResourceManager::new(),
+            language_manager: LanguageManager::new(),
+            window_counter: 0,
         }
     }
 
     pub fn new_editor(&mut self) -> Status<()> {
-        let mut new_window = confirm!(PoetWindow::interface(&self.interface_context, &mut self.resource_manager));
+        let mut new_window = confirm!(PoetWindow::interface(&self.interface_context, &mut self.resource_manager, &mut self.language_manager, self.window_counter));
         new_window.rerender(&self.interface_context, &self.interface_theme, &mut self.resource_manager);
 
+        self.window_counter += 1;
         self.windows.push(new_window);
         return success!(());
     }
@@ -58,7 +63,7 @@ impl<'i> Instance<'i> {
         let mut force_update = false;
 
         'handle: while index < self.windows.len() {
-            for action in self.windows[index].handle_input(&self.interface_context, &self.interface_theme, &mut self.resource_manager) {
+            for action in self.windows[index].handle_input(&self.interface_context, &self.interface_theme, &mut self.resource_manager, &mut self.language_manager) {
                 match action {
 
                     Action::CloseWindow => {

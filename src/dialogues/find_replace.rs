@@ -3,6 +3,7 @@ use seamonkey::*;
 use sfml::graphics::*;
 use sfml::system::Vector2f;
 
+use system::LanguageManager;
 use interface::InterfaceContext;
 use dialogues::DialogueTheme;
 use elements::TextBox;
@@ -16,15 +17,15 @@ pub struct FindReplaceDialogue {
 
 impl FindReplaceDialogue {
 
-    pub fn new() -> Self {
+    pub fn new(language_manager: &mut LanguageManager) -> Self {
         Self {
-            find_box: TextBox::new("find", 0),
-            replace_box: TextBox::new("replace", 1),
+            find_box: TextBox::new(language_manager, "find", 0),
+            replace_box: TextBox::new(language_manager, "replace", 1),
             find_focused: true,
         }
     }
 
-    pub fn handle_action(&mut self, action: Action) -> (bool, Option<bool>) {
+    pub fn handle_action(&mut self, language_manager: &mut LanguageManager, action: Action) -> (bool, Option<bool>) {
 
         if let Action::FindReplace = action {
             return (true, Some(false));
@@ -46,7 +47,7 @@ impl FindReplaceDialogue {
         }
 
         if self.find_focused {
-            let (handled, status) = self.find_box.handle_action(action);
+            let (handled, status) = self.find_box.handle_action(language_manager, action);
 
             if let Some(completed) = status {
                 if completed {
@@ -59,7 +60,7 @@ impl FindReplaceDialogue {
         }
 
 
-        let (handled, status) = self.replace_box.handle_action(action);
+        let (handled, status) = self.replace_box.handle_action(language_manager, action);
         if let Some(completed) = status {
             if completed && self.find_box.get().is_empty() {
                 self.find_focused = true;
@@ -70,16 +71,16 @@ impl FindReplaceDialogue {
         return (handled, status);
     }
 
-    pub fn add_character(&mut self, character: Character) {
+    pub fn add_character(&mut self, language_manager: &mut LanguageManager, character: Character) {
         match self.find_focused {
-            true => self.find_box.add_character(character),
-            false => self.replace_box.add_character(character),
+            true => self.find_box.add_character(language_manager, character),
+            false => self.replace_box.add_character(language_manager, character),
         }
     }
 
-    pub fn reset(&mut self) {
-        self.find_box.clear();
-        self.replace_box.clear();
+    pub fn reset(&mut self, language_manager: &mut LanguageManager) {
+        self.find_box.clear(language_manager);
+        self.replace_box.clear(language_manager);
         self.find_focused = true;
     }
 

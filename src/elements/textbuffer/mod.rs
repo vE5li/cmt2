@@ -16,9 +16,9 @@ use elements::*;
 use interface::InterfaceContext;
 use dialogues::*;
 use input::Action;
-use system::{ Filebuffer, BufferAction };
+use system::{ Filebuffer, BufferAction, LanguageManager };
 
-use self::token::Token;
+pub use self::token::Token;
 
 pub use self::theme::TextbufferTheme;
 pub use self::context::TextbufferContext;
@@ -31,15 +31,7 @@ macro_rules! handle_return {
     })
 }
 
-pub fn length_from_position(position: Vec<Position>) -> usize {
-    return position.iter().map(|position| position.length).sum();
-}
-
 pub struct Textbuffer {
-    //text: SharedString,
-    tokenizer: Tokenizer,
-    language: SharedString,
-    tokens: Vec<Token>,
     selections: Vec<Selection>,
     mode: SelectionMode,
     adding_selection: bool,
@@ -48,22 +40,15 @@ pub struct Textbuffer {
     position: Vector2f,
     vertical_scroll: usize,
     horizontal_scroll: usize,
-    selection_lines: bool,
-    status_bar: bool,
-    multiline: bool,
     history_index: usize,
+    line_count: usize,
+    window_id: usize,
 }
 
 impl Textbuffer {
 
-    pub fn new(size: Vector2f, position: Vector2f, padding: char, selection_lines: bool, status_bar: bool, multiline: bool) -> Self {
-        let language = SharedString::from("none");
-
+    pub fn new(window_id: usize, size: Vector2f, position: Vector2f, padding: char, selection_lines: bool, status_bar: bool, multiline: bool) -> Self {
         Self {
-            //text: format_shared!("{}", padding),
-            tokenizer: guaranteed!(Self::load_language(&language)),
-            language: language,
-            tokens: vec![Token::new(TokenType::Operator(SharedString::from("newline")), 0, 1)],
             selections: vec![Selection::new(0, 0, 0)],
             mode: SelectionMode::Character,
             adding_selection: false,
@@ -72,26 +57,27 @@ impl Textbuffer {
             position: position,
             vertical_scroll: 0,
             horizontal_scroll: 0,
-            selection_lines: selection_lines,
-            status_bar: status_bar,
-            multiline: multiline,
             history_index: 0,
+            line_count: 0,
+            window_id: window_id,
         }
     }
 
-    pub fn set_text(&mut self, filebuffer: &mut Filebuffer, text: SharedString) -> Status<()> {
+    pub fn set_text(&mut self, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer, text: SharedString) -> Status<()> {
         filebuffer.set_text(text);
         self.reset(filebuffer);
-        return self.parse(filebuffer);
+        return filebuffer.retokenize(language_manager);
     }
 
-    pub fn set_text_without_save(&mut self, filebuffer: &mut Filebuffer, text: SharedString) -> Status<()> {
+    pub fn set_text_without_save(&mut self, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer, text: SharedString) -> Status<()> {
         filebuffer.set_text_without_save(text);
         self.reset(filebuffer); // TODO: dont add change_selection_mode to undo queue
-        return self.parse(filebuffer);
+        return filebuffer.retokenize(language_manager);
     }
 
-    pub fn resize(&mut self, size: Vector2f) {
+    pub fn resize(&mut self, interface_context: &InterfaceContext, size: Vector2f) {
+        let line_scaling = interface_context.line_spacing * interface_context.font_size as f32;
+        self.line_count = (size.y / line_scaling) as usize;
         self.size = size;
     }
 
@@ -100,43 +86,21 @@ impl Textbuffer {
     }
 
     fn set_selection_mode(&mut self, filebuffer: &mut Filebuffer, mode: SelectionMode) {
-        filebuffer.change_selection_mode(0, self.mode, mode, true);
+        filebuffer.change_selection_mode(self.window_id, self.mode, mode, true);
         self.mode = mode;
     }
 
-    pub fn reset(&mut self, filebuffer: &mut Filebuffer) {
+    pub fn reset(&mut self, filebuffer: &mut Filebuffer) { // MAKE
         self.vertical_scroll = 0;
         self.horizontal_scroll = 0;
 
-        // remove_selections
-        // move_selection_to_zero(0)
-        // reset_selection
+        //self.drop_selections(filebuffer, textbuffer_context);
+        //self.set_primary_index(filebuffer, 0, 0);
+        //self.reset_selection(filebuffer, 0);
 
         self.selections = vec![Selection::new(0, 0, 0)];
         self.adding_selection = false;
         self.character_mode(filebuffer);
-    }
-
-    fn load_language(language: &SharedString) -> Status<Tokenizer> {
-        let file_path = format_shared!("/home/.config/poet/languages/{}.data", language);
-        let tokenizer_map = confirm!(read_map(&file_path)); // confirm!(read_map(&file_path), Message, "...");
-        return Tokenizer::new(&tokenizer_map);
-    }
-
-    pub fn parse(&mut self, filebuffer: &Filebuffer) -> Status<()> {
-
-        let (mut token_stream, registry, notes) = display!(self.tokenizer.tokenize(filebuffer.get_text(), None, true));
-        let mut tokens = Vec::new();
-        let mut offset = 0;
-
-        for token in token_stream.into_iter() {
-            let length = length_from_position(token.position);
-            tokens.push(Token::new(token.token_type, offset, length));
-            offset += length;
-        }
-
-        self.tokens = tokens;
-        return success!(());
     }
 
     pub fn scroll_up(&mut self, textbuffer_context: &TextbufferContext) {
@@ -166,37 +130,28 @@ impl Textbuffer {
         return last_safe;
     }
 
-    fn visible_line_count(&self) -> usize {
-        //let line_scaling = context.line_spacing * context.font_size as f32;
-        //return (self.size.y / line_scaling) as usize;
+    fn check_selection_gaps(&mut self, textbuffer_context: &TextbufferContext, filebuffer: &mut Filebuffer) {
 
-        return 40;
-        //return self.visible_line_count;
-    }
-
-    fn check_selection_gaps(&mut self, textbuffer_context: &TextbufferContext) {
-
-        if !self.multiline {
+        if !textbuffer_context.multiline {
             return;
         }
 
-        /*let selection = self.selections.last().unwrap();
-        let line_number = self.line_number_from_index(selection.primary_index);
-        let visible_line_count = self.visible_line_count() - 1;
+        let selection = self.selections.last().unwrap();
+        let line_number = self.line_number_from_index(filebuffer, selection.primary_index);
 
-        if line_number < self.vertical_scroll + context.selection_gap {
-            match line_number > context.selection_gap {
-                true => self.vertical_scroll = line_number - context.selection_gap,
+        if line_number < self.vertical_scroll + textbuffer_context.selection_gap {
+            match line_number > textbuffer_context.selection_gap {
+                true => self.vertical_scroll = line_number - textbuffer_context.selection_gap,
                 false => self.vertical_scroll = 0,
             }
-        } else if line_number + context.selection_gap > self.vertical_scroll + visible_line_count {
-            self.vertical_scroll += line_number + context.selection_gap - self.vertical_scroll - visible_line_count;
-        }*/
+        } else if line_number + textbuffer_context.selection_gap > self.vertical_scroll + self.line_count {
+            self.vertical_scroll += line_number + textbuffer_context.selection_gap - self.vertical_scroll - self.line_count;
+        }
     }
 
     fn add_selection_(&mut self, filebuffer: &mut Filebuffer, selection: Selection) {
         let index = self.selections.len();
-        self.history_index = filebuffer.add_selection(0, index, selection.primary_index, selection.secondary_index, selection.offset, false);
+        self.history_index = filebuffer.add_selection(self.window_id, index, selection.primary_index, selection.secondary_index, selection.offset, false);
         self.selections.push(selection);
     }
 
@@ -204,7 +159,7 @@ impl Textbuffer {
         let primary_index = self.selections[index].primary_index;
         let secondary_index = self.selections[index].secondary_index;
         let offset = self.selections[index].offset;
-        self.history_index = filebuffer.remove_selection(0, index, primary_index, secondary_index, offset, false);
+        self.history_index = filebuffer.remove_selection(self.window_id, index, primary_index, secondary_index, offset, false);
         self.selections.remove(index);
     }
 
@@ -212,7 +167,7 @@ impl Textbuffer {
         let previous = self.selections[index].primary_index;
         if previous != new_primary {
             self.selections[index].primary_index = new_primary;
-            self.history_index = filebuffer.change_primary_index(0, index, previous, new_primary, true);
+            self.history_index = filebuffer.change_primary_index(self.window_id, index, previous, new_primary, true);
         }
     }
 
@@ -220,7 +175,7 @@ impl Textbuffer {
         let previous = self.selections[index].secondary_index;
         if previous != new_secondary {
             self.selections[index].secondary_index = new_secondary;
-            self.history_index = filebuffer.change_secondary_index(0, index, previous, new_secondary, true);
+            self.history_index = filebuffer.change_secondary_index(self.window_id, index, previous, new_secondary, true);
         }
     }
 
@@ -333,7 +288,7 @@ impl Textbuffer {
         let new_offset = self.offset_from_index(filebuffer, self.selections[index].primary_index);
         if previous != new_offset {
             self.selections[index].offset = new_offset;
-            filebuffer.change_offset(0, index, previous, new_offset, true);
+            filebuffer.change_offset(self.window_id, index, previous, new_offset, true);
         }
     }
 
@@ -449,7 +404,7 @@ impl Textbuffer {
         //self.merge_overlapping_selections();
     }
 
-    fn newline_up(&mut self, textbuffer_context: &TextbufferContext, filebuffer: &mut Filebuffer) {
+    fn newline_up(&mut self, textbuffer_context: &TextbufferContext, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer) {
         for index in self.selection_start()..self.selections.len() {
             self.move_selection_to_first(filebuffer, index);
             self.move_selection_to_start(textbuffer_context, filebuffer, true, index);
@@ -465,10 +420,10 @@ impl Textbuffer {
             self.advance_selections(filebuffer, index, 1);
         }
 
-        self.parse(filebuffer);
+        filebuffer.retokenize(language_manager);
     }
 
-    fn newline_down(&mut self, textbuffer_context: &TextbufferContext, filebuffer: &mut Filebuffer) {
+    fn newline_down(&mut self, textbuffer_context: &TextbufferContext, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer) {
         for index in self.selection_start()..self.selections.len() {
             self.move_selection_to_last(filebuffer, index);
             self.move_selection_to_end(filebuffer, index);
@@ -486,11 +441,11 @@ impl Textbuffer {
             self.reset_selection(filebuffer, index);
         }
 
-        self.check_selection_gaps(textbuffer_context);
-        self.parse(filebuffer);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
+        filebuffer.retokenize(language_manager);
     }
 
-    fn remove(&mut self, textbuffer_context: &TextbufferContext, filebuffer: &mut Filebuffer) {
+    fn remove(&mut self, textbuffer_context: &TextbufferContext, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer) {
         match self.mode {
 
             SelectionMode::Character => {
@@ -515,12 +470,12 @@ impl Textbuffer {
             },
         }
 
-        self.check_selection_gaps(textbuffer_context);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
         //self.merge_overlapping_selections();
-        self.parse(filebuffer);
+        filebuffer.retokenize(language_manager);
     }
 
-    fn delete(&mut self, textbuffer_context: &TextbufferContext, filebuffer: &mut Filebuffer) {
+    fn delete(&mut self, textbuffer_context: &TextbufferContext, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer) {
         match self.mode {
 
             SelectionMode::Character => {
@@ -545,12 +500,12 @@ impl Textbuffer {
             },
         }
 
-        self.check_selection_gaps(textbuffer_context);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
         //self.merge_overlapping_selections();
-        self.parse(filebuffer);
+        filebuffer.retokenize(language_manager);
     }
 
-    fn delete_line(&mut self, textbuffer_context: &TextbufferContext, filebuffer: &mut Filebuffer) {
+    fn delete_line(&mut self, textbuffer_context: &TextbufferContext, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer) {
         match self.mode {
 
             SelectionMode::Character => {
@@ -579,9 +534,9 @@ impl Textbuffer {
             },
         }
 
-        self.check_selection_gaps(textbuffer_context);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
         //self.merge_overlapping_selections();
-        self.parse(filebuffer);
+        filebuffer.retokenize(language_manager);
     }
 
     fn move_left(&mut self, textbuffer_context: &TextbufferContext, filebuffer: &mut Filebuffer) {
@@ -604,7 +559,7 @@ impl Textbuffer {
             SelectionMode::Line => return,
         }
 
-        self.check_selection_gaps(textbuffer_context);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
         //self.merge_overlapping_selections();
     }
 
@@ -662,7 +617,7 @@ impl Textbuffer {
             },
         }
 
-        self.check_selection_gaps(textbuffer_context);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
         //self.merge_overlapping_selections();
     }
 
@@ -696,7 +651,7 @@ impl Textbuffer {
             },
         }
 
-        self.check_selection_gaps(textbuffer_context);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
         //self.merge_overlapping_selections();
     }
 
@@ -716,7 +671,7 @@ impl Textbuffer {
             SelectionMode::Line => return,
         }
 
-        self.check_selection_gaps(textbuffer_context);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
         //self.merge_overlapping_selections();
     }
 
@@ -736,7 +691,7 @@ impl Textbuffer {
             SelectionMode::Line => return,
         }
 
-        self.check_selection_gaps(textbuffer_context);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
         //self.merge_overlapping_selections();
     }
 
@@ -769,7 +724,7 @@ impl Textbuffer {
             },
         }
 
-        self.check_selection_gaps(textbuffer_context);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
         //self.merge_overlapping_selections();
     }
 
@@ -802,7 +757,7 @@ impl Textbuffer {
             },
         }
 
-        self.check_selection_gaps(textbuffer_context);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
         //self.merge_overlapping_selections();
     }
 
@@ -971,13 +926,13 @@ impl Textbuffer {
         return length;
     }
 
-    fn token_from_index(&self, index: usize) -> usize {
-        for token_index in (0..self.tokens.len()).rev() {
-            if self.tokens[token_index].index == index {
+    fn token_from_index(&self, filebuffer: &mut Filebuffer, index: usize) -> usize {
+        for token_index in (0..filebuffer.tokens.len()).rev() {
+            if filebuffer.tokens[token_index].index == index {
                 return token_index;
             }
 
-            if self.tokens[token_index].index < index {
+            if filebuffer.tokens[token_index].index < index {
                 return token_index;
             }
         }
@@ -1012,8 +967,8 @@ impl Textbuffer {
             //for index in 0..self.selections.len() {
             //    self.selections[index].reset();
             //    let token_index = self.token_from_index(self.selections[index].index);
-            //    let new_index = self.tokens[token_index].index;
-            //    let length = self.tokens[token_index].length;
+            //    let new_index = filebuffer.tokens[token_index].index;
+            //    let length = filebuffer.tokens[token_index].length;
             //    self.selections[index].set_index_length(new_index, length);
             //}
 
@@ -1065,7 +1020,7 @@ impl Textbuffer {
             },
         }
 
-        self.check_selection_gaps(textbuffer_context);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
     }
 
     fn index_has_selection(&self, primary_index: usize, secondary_index: usize) -> bool {
@@ -1121,7 +1076,7 @@ impl Textbuffer {
             },
         }
 
-        self.check_selection_gaps(textbuffer_context);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
     }
 
     fn duplicate_up(&mut self, textbuffer_context: &TextbufferContext, filebuffer: &mut Filebuffer) {
@@ -1143,7 +1098,7 @@ impl Textbuffer {
             },
         }
 
-        self.check_selection_gaps(textbuffer_context);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
     }
 
     fn duplicate_down(&mut self, textbuffer_context: &TextbufferContext, filebuffer: &mut Filebuffer) {
@@ -1165,7 +1120,7 @@ impl Textbuffer {
             },
         }
 
-        self.check_selection_gaps(textbuffer_context);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
     }
 
     fn do_buffer_action(&mut self, action: BufferAction) {
@@ -1188,15 +1143,14 @@ impl Textbuffer {
 
     pub fn history_catch_up(&mut self, filebuffer: &mut Filebuffer) -> bool {
         let history_index = filebuffer.get_history_index();
-        let mut force_rerender = false;
+        let force_rerender = self.history_index != history_index;
 
         while self.history_index > history_index {
             self.history_index -= 1;
             let action = filebuffer.get_action(self.history_index);
 
-            if action.is_selection(0) {
+            if action.is_selection(self.window_id) {
                 self.do_buffer_action(action.invert());
-                force_rerender = true;
             }
         }
 
@@ -1204,23 +1158,26 @@ impl Textbuffer {
             let action = filebuffer.get_action(self.history_index);
             self.history_index += 1;
 
-            if action.is_selection(0) {
+            if action.is_selection(self.window_id) {
                 self.do_buffer_action(action);
-                force_rerender = true;
             }
         }
 
         return force_rerender;
     }
 
-    fn undo(&mut self, filebuffer: &mut Filebuffer) {
-        filebuffer.undo();
-        self.history_catch_up(filebuffer);
+    fn undo(&mut self, textbuffer_context: &TextbufferContext, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer) {
+        filebuffer.undo(language_manager);
+        if self.history_catch_up(filebuffer) {
+            self.check_selection_gaps(textbuffer_context, filebuffer);
+        }
     }
 
-    fn redo(&mut self, filebuffer: &mut Filebuffer) {
-        filebuffer.redo();
-        self.history_catch_up(filebuffer);
+    fn redo(&mut self, textbuffer_context: &TextbufferContext, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer) {
+        filebuffer.redo(language_manager);
+        if self.history_catch_up(filebuffer) {
+            self.check_selection_gaps(textbuffer_context, filebuffer);
+        }
     }
 
     pub fn select_last_character(&mut self, filebuffer: &mut Filebuffer) {
@@ -1234,7 +1191,7 @@ impl Textbuffer {
         self.reset_selection(filebuffer, 0);
     }
 
-    pub fn handle_action(&mut self, textbuffer_context: &TextbufferContext, filebuffer: &mut Filebuffer, action: Action) -> Option<Action> {
+    pub fn handle_action(&mut self, textbuffer_context: &TextbufferContext, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer, action: Action) -> Option<Action> {
         match action {
 
             Action::CharacterMode => handle_return!(self.character_mode(filebuffer)),
@@ -1275,25 +1232,25 @@ impl Textbuffer {
 
             Action::Insert => handle_return!(self.insert(filebuffer)),
 
-            Action::NewlineUp => handle_return!(self.newline_up(textbuffer_context, filebuffer)),
+            Action::NewlineUp => handle_return!(self.newline_up(textbuffer_context, language_manager, filebuffer)),
 
-            Action::NewlineDown => handle_return!(self.newline_down(textbuffer_context, filebuffer)),
+            Action::NewlineDown => handle_return!(self.newline_down(textbuffer_context, language_manager, filebuffer)),
 
             Action::AddSelection => handle_return!(self.add_selection(textbuffer_context, filebuffer)),
 
             Action::SelectNext => handle_return!(self.select_next(textbuffer_context, filebuffer)),
 
-            Action::Remove => handle_return!(self.remove(textbuffer_context, filebuffer)),
+            Action::Remove => handle_return!(self.remove(textbuffer_context, language_manager, filebuffer)),
 
-            Action::Delete => handle_return!(self.delete(textbuffer_context, filebuffer)),
+            Action::Delete => handle_return!(self.delete(textbuffer_context, language_manager, filebuffer)),
 
-            Action::DeleteLine => handle_return!(self.delete_line(textbuffer_context, filebuffer)),
+            Action::DeleteLine => handle_return!(self.delete_line(textbuffer_context, language_manager, filebuffer)),
 
-            Action::Rotate => handle_return!(self.rotate_selections(filebuffer)),
+            Action::Rotate => handle_return!(self.rotate_selections(language_manager, filebuffer)),
 
-            Action::Undo => handle_return!(self.undo(filebuffer)),
+            Action::Undo => handle_return!(self.undo(textbuffer_context, language_manager, filebuffer)),
 
-            Action::Redo => handle_return!(self.redo(filebuffer)),
+            Action::Redo => handle_return!(self.redo(textbuffer_context, language_manager, filebuffer)),
 
             Action::Abort => {
                 if self.selections.len() > 1 {
@@ -1385,7 +1342,7 @@ impl Textbuffer {
         }*/
     }
 
-    fn rotate_selections(&mut self, filebuffer: &mut Filebuffer) {
+    fn rotate_selections(&mut self, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer) {
         if self.selections.len() > 1 {
             let mut buffer = self.get_selected_text(filebuffer, self.selections.len() - 1);
 
@@ -1400,7 +1357,7 @@ impl Textbuffer {
             }
 
             self.validate_text(filebuffer);
-            self.parse(filebuffer);
+            filebuffer.retokenize(language_manager);
         }
     }
 
@@ -1416,7 +1373,7 @@ impl Textbuffer {
 
         // reset that selection
         self.adding_selection = false;
-        self.check_selection_gaps(textbuffer_context);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
     }
 
     fn set_selections_from_string(&mut self, filebuffer: &mut Filebuffer, string: &SharedString) {
@@ -1433,7 +1390,7 @@ impl Textbuffer {
         }
     }
 
-    pub fn add_character(&mut self, textbuffer_context: &TextbufferContext, filebuffer: &mut Filebuffer, character: Character) {
+    pub fn add_character(&mut self, textbuffer_context: &TextbufferContext, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer, character: Character) {
 
         for index in 0..self.selections.len() {
             if self.is_selection_extended(index) {
@@ -1459,7 +1416,7 @@ impl Textbuffer {
 
         self.adding_selection = false;
         self.character_mode(filebuffer);
-        self.parse(filebuffer);
+        filebuffer.retokenize(language_manager);
     }
 
 
@@ -1485,10 +1442,10 @@ impl Textbuffer {
         let line_number_size = Vector2f::new(theme.line_number_width * character_scaling, line_number_height);
         let character_size = Vector2f::new(character_scaling, line_scaling);
 
-        //if context.highlighting {
-        //    character_text.set_fill_color(self.tokens[token_index].get_color(context));
-        //    character_text.set_style(self.tokens[token_index].get_style(context));
-        //}
+        let mut text_theme = match textbuffer_context.highlighting {
+            true => filebuffer.tokens[token_index].get_theme(&theme),
+            false => &theme.text_theme,
+        };
 
         if textbuffer_context.line_numbers {
             let position = self.position + Vector2f::new(theme.line_number_offset * interface_context.font_size as f32, top_offset + theme.line_number_gap * line_scaling);
@@ -1501,13 +1458,12 @@ impl Textbuffer {
                 break;
             }
 
-            //while index >= self.tokens[token_index].index + self.tokens[token_index].length {
-            //    token_index += 1;
-            //    if context.highlighting {
-            //        character_text.set_fill_color(self.tokens[token_index].get_color(context));
-            //        character_text.set_style(self.tokens[token_index].get_style(context));
-            //    }
-            //}
+            while index >= filebuffer.tokens[token_index].index + filebuffer.tokens[token_index].length {
+                token_index += 1;
+                if textbuffer_context.highlighting {
+                    text_theme = filebuffer.tokens[token_index].get_theme(&theme);
+                }
+            }
 
             if filebuffer.character(index).is_newline() && index != filebuffer.last_buffer_index() {
                 left_offset = line_number_offset + theme.offset.x * interface_context.font_size as f32;
@@ -1524,7 +1480,7 @@ impl Textbuffer {
 
             if left_offset <= self.size.x {
                 let character_position = self.position + Vector2f::new(left_offset, top_offset);
-                Text::render(framebuffer, interface_context, &theme.text_theme, &filebuffer.character(index).to_string(), character_size, character_position);
+                Text::render(framebuffer, interface_context, text_theme, &filebuffer.character(index).to_string(), character_size, character_position);
                 left_offset += character_scaling;
             }
         }
@@ -1645,13 +1601,13 @@ impl Textbuffer {
 
         //if self.is_single_word_selected() {
         //    let token_index = self.token_from_index(self.selections[self.selections.len() - 1].index);
-        //    if let Some(display_name) = self.tokens[token_index].display_name() {
+        //    if let Some(display_name) = filebuffer.tokens[token_index].display_name() {
         //        offset -= display_name.len() + 3;
         //        terminal.move_cursor(self.size.y - 1, offset);
         //        print!(" {} ", display_name);
         //    }
 
-        //    if let TokenType::Invalid(error) = &self.tokens[token_index].token_type {
+        //    if let TokenType::Invalid(error) = &filebuffer.tokens[token_index].token_type {
         //        let error_string = format!("{:?}", error); // TEMP
         //        offset -= error_string.len() + 3;
         //        terminal.set_color_pair(&context.theme.panel.background, &context.theme.error_color, true);

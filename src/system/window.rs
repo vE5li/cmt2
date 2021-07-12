@@ -3,7 +3,7 @@ use sfml::{ graphics::*, system::*, window::* };
 use seamonkey::*;
 use input::*;
 use interface::{ Interface, InterfaceTheme, InterfaceContext };
-use system::ResourceManager;
+use system::{ ResourceManager, LanguageManager };
 use input::Action;
 
 pub struct PoetWindow<'w> {
@@ -17,7 +17,7 @@ pub struct PoetWindow<'w> {
 
 impl<'w> PoetWindow<'w> {
 
-    pub fn interface(interface_context: &InterfaceContext, resource_manager: &mut ResourceManager) -> Status<Self> {
+    pub fn interface(interface_context: &InterfaceContext, resource_manager: &mut ResourceManager, language_manager: &mut LanguageManager, window_id: usize) -> Status<Self> {
 
         let size = Vector2f::new(400.0, 400.0);
 
@@ -32,7 +32,7 @@ impl<'w> PoetWindow<'w> {
         let texture_pointer = framebuffer.texture() as *const _;
         surface.set_texture(unsafe { &*texture_pointer }, false);
 
-        let interface = confirm!(Interface::new(resource_manager));
+        let interface = confirm!(Interface::new(resource_manager, language_manager, window_id));
 
         return success!(Self {
             size: size,
@@ -44,7 +44,7 @@ impl<'w> PoetWindow<'w> {
         });
     }
 
-    pub fn handle_input(&mut self, interface_context: &InterfaceContext, theme: &InterfaceTheme, resource_manager: &mut ResourceManager) -> Vec<Action> {
+    pub fn handle_input(&mut self, interface_context: &InterfaceContext, theme: &InterfaceTheme, resource_manager: &mut ResourceManager, language_manager: &mut LanguageManager) -> Vec<Action> {
         let mut action_queue = Vec::new();
         let mut force_rerender = false;
         let mut handled = false;
@@ -63,14 +63,8 @@ impl<'w> PoetWindow<'w> {
                         let modifiers = Modifiers::from(shift, ctrl, alt, system);
                         let key_event = KeyEvent::new(code, modifiers);
 
-                        //println!("modifiers: {:?}", modifiers);
-                        //println!("key event: {:?}", key_event);
-
                         for action in interface_context.get_matching_actions(&key_event) {
-
-                            //println!("action: {:?}", action);
-
-                            if let Some(unhandled_action) = self.interface.handle_action(interface_context, resource_manager, action) {
+                            if let Some(unhandled_action) = self.interface.handle_action(interface_context, resource_manager, language_manager, action) {
                                 if unhandled_action.is_global() {
                                     action_queue.push(unhandled_action);
                                     handled = true;
@@ -96,7 +90,7 @@ impl<'w> PoetWindow<'w> {
                         char => Character::from_char(char),
                     };
 
-                    self.interface.add_character(interface_context, resource_manager, character);
+                    self.interface.add_character(interface_context, resource_manager, language_manager, character);
                     force_rerender = true;
                 },
 
@@ -153,8 +147,8 @@ impl<'w> PoetWindow<'w> {
     }
 
     pub fn resize(&mut self, interface_context: &InterfaceContext, theme: &InterfaceTheme, size: Vector2f) {
+        self.interface.resize(interface_context, size);
         self.size = size;
-        self.interface.resize(size);
 
         self.reallocate(interface_context);
         self.update_layout(interface_context, theme);

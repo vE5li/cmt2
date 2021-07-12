@@ -1,24 +1,63 @@
 use seamonkey::*;
 
-use system::History;
-use system::BufferAction;
-use elements::SelectionMode;
+use system::{ BufferAction, LanguageManager, History };
+use elements::{ SelectionMode, Token };
+
+pub fn length_from_position(position: Vec<Position>) -> usize {
+    return position.iter().map(|position| position.length).sum();
+}
 
 #[derive(Clone)]
 pub struct Filebuffer {
     text: SharedString,
     history: History,
     history_index: usize,
+    pub tokens: Vec<Token>,
+    language: SharedString,
 }
 
 impl Filebuffer {
 
-    pub fn new(text: SharedString) -> Self {
+    pub fn new(language_manager: &mut LanguageManager, language: SharedString, text: SharedString) -> Self {
+        let tokens = display!(Self::tokenize(language_manager, &language, &text));
+
         return Self {
             text: text,
             history: History::new(),
             history_index: 0,
+            tokens: tokens,
+            language: language,
         }
+    }
+
+    fn tokenize(language_manager: &mut LanguageManager, language: &SharedString, text: &SharedString) -> Status<Vec<Token>> {
+
+        let tokenizer = confirm!(language_manager.get_load(language));
+        let (mut token_stream, registry, notes) = display!(tokenizer.tokenize(text.clone(), None, true));
+        let mut tokens = Vec::new();
+        let mut offset = 0;
+
+        for token in token_stream.into_iter() {
+            let length = length_from_position(token.position);
+            tokens.push(Token::new(token.token_type, offset, length));
+            offset += length;
+        }
+
+        return success!(tokens);
+    }
+
+    pub fn retokenize(&mut self, language_manager: &mut LanguageManager) -> Status<()> {
+        self.tokens = confirm!(Self::tokenize(language_manager, &self.language, &self.text));
+        return success!(());
+    }
+
+    pub fn set_language(&mut self, language_manager: &mut LanguageManager, language: SharedString) -> Status<()> {
+        if self.language == language {
+            return success!(());
+        }
+
+        self.language = language;
+        return self.retokenize(language_manager);
     }
 
     fn insert_text_raw(&mut self, index: usize, text: &SharedString) {
@@ -147,10 +186,12 @@ impl Filebuffer {
         }
     }
 
-    pub fn undo(&mut self) {
+    pub fn undo(&mut self, language_manager: &mut LanguageManager) {
         if self.history_index == 0 {
             return;
         }
+
+        let mut force_retokenize = false;
 
         loop {
             self.history_index -= 1;
@@ -158,19 +199,26 @@ impl Filebuffer {
 
             if action.is_text() {
                 self.do_buffer_action(action.invert());
+                force_retokenize = true;
             }
 
             if self.history_index == 0 || !self.history.is_action_combined(self.history_index) {
                 break;
             }
         }
+
+        if force_retokenize {
+            self.retokenize(language_manager);
+        }
     }
 
-    pub fn redo(&mut self) {
+    pub fn redo(&mut self, language_manager: &mut LanguageManager) {
         let history_length = self.history.length();
         if self.history_index >= history_length {
             return;
         }
+
+        let mut force_retokenize = false;
 
         loop {
             let action = self.history.get(self.history_index);
@@ -178,11 +226,16 @@ impl Filebuffer {
 
             if action.is_text() {
                 self.do_buffer_action(action);
+                force_retokenize = true;
             }
 
             if self.history_index >= history_length || !self.history.is_action_combined(self.history_index) {
                 break;
             }
+        }
+
+        if force_retokenize {
+            self.retokenize(language_manager);
         }
     }
 }

@@ -3,6 +3,7 @@ use seamonkey::*;
 use sfml::graphics::*;
 use sfml::system::Vector2f;
 
+use system::LanguageManager;
 use dialogues::DialogueTheme;
 use elements::ComboBox;
 use interface::InterfaceContext;
@@ -14,7 +15,7 @@ pub struct ActionDialogue {
 
 impl ActionDialogue {
 
-    pub fn new() -> Self {
+    pub fn new(language_manager: &mut LanguageManager) -> Self {
         let actions = vec![
             // no "comfirm", "action", "abort", "hidden_files"
             SharedString::from("quit"),
@@ -80,21 +81,21 @@ impl ActionDialogue {
         ];
 
         Self {
-            action_box: ComboBox::new("action", 0, false, false, actions),
+            action_box: ComboBox::new(language_manager, "action", 0, false, false, actions),
         }
     }
 
-    pub fn handle_action(&mut self, interface_context: &InterfaceContext, action: Action) -> (bool, Option<bool>) {
+    pub fn handle_action(&mut self, interface_context: &InterfaceContext, language_manager: &mut LanguageManager, action: Action) -> (bool, Option<bool>) {
 
         if let Action::Action = action {
             return (true, Some(false));
         }
 
-        return self.action_box.handle_action(interface_context, action);
+        return self.action_box.handle_action(interface_context, language_manager, action);
     }
 
-    pub fn add_character(&mut self, character: Character) {
-        self.action_box.add_character(character);
+    pub fn add_character(&mut self, language_manager: &mut LanguageManager, character: Character) {
+        self.action_box.add_character(language_manager, character);
     }
 
     pub fn update_layout(&mut self, interface_context: &InterfaceContext, theme: &DialogueTheme, size: Vector2f, position: Vector2f) {

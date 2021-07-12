@@ -6,6 +6,7 @@ use input::Action;
 use elements::{ ComboBox, ComboSelection };
 use dialogues::DialogueTheme;
 use interface::InterfaceContext;
+use system::LanguageManager;
 use super::super::get_directory_entries;
 
 pub struct FileBox {
@@ -17,7 +18,7 @@ pub struct FileBox {
 
 impl FileBox {
 
-    pub fn new(description: &'static str, displacement: usize, allow_unknown: bool) -> Self {
+    pub fn new(language_manager: &mut LanguageManager, description: &'static str, displacement: usize, allow_unknown: bool) -> Self {
 
         let entries = match get_directory_entries(&SharedString::from("./")) {
             Status::Success(entries) => Self::entries_with_parent(entries, &SharedString::from("./"), true),
@@ -25,7 +26,7 @@ impl FileBox {
         };
 
         Self {
-            combobox: ComboBox::new(description, displacement, allow_unknown, true, entries),
+            combobox: ComboBox::new(language_manager, description, displacement, allow_unknown, true, entries),
             displacement: displacement,
             directories: 0,
             show_hidden_files: true,
@@ -94,7 +95,7 @@ impl FileBox {
         }
     }
 
-    pub fn handle_action(&mut self, interface_context: &InterfaceContext, action: Action) -> (bool, Option<bool>) {
+    pub fn handle_action(&mut self, interface_context: &InterfaceContext, language_manager: &mut LanguageManager, action: Action) -> (bool, Option<bool>) {
 
         if let Action::Confirm = action {
             if let ComboSelection::Variant(index, _original) = self.combobox.selection.clone() {
@@ -121,9 +122,9 @@ impl FileBox {
             if !positions.is_empty() {
                 let last_position = positions.last().cloned().unwrap();
                 let sliced_text = text.slice(0, last_position);
-                self.combobox.set_text(sliced_text);
+                self.combobox.set_text(language_manager, sliced_text);
             } else {
-                self.combobox.clear();
+                self.combobox.clear(language_manager);
             }
 
             self.combobox.selection = ComboSelection::TextBox;
@@ -139,7 +140,7 @@ impl FileBox {
             return (true, None);
         }
 
-        let return_value = self.combobox.handle_action(interface_context, action);
+        let return_value = self.combobox.handle_action(interface_context, language_manager, action);
 
         //if action.modifies_text() {
         //    self.check_directories();
@@ -167,8 +168,8 @@ impl FileBox {
         return return_value;
     }
 
-    pub fn add_character(&mut self, character: Character) {
-        self.combobox.add_character(character);
+    pub fn add_character(&mut self, language_manager: &mut LanguageManager, character: Character) {
+        self.combobox.add_character(language_manager, character);
         self.check_directories();
     }
 

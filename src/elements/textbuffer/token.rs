@@ -1,6 +1,8 @@
 use sfml::graphics::{ Color, TextStyle };
 use seamonkey::TokenType;
 
+use elements::{ TextbufferTheme, TextTheme };
+
 #[derive(Clone, Debug)]
 pub struct Token {
     pub token_type: TokenType,
@@ -34,35 +36,19 @@ impl Token {
         }
     }
 
-    /*pub fn get_color(&self, context: &Context) -> Color {
+    pub fn get_theme<'t>(&self, theme: &'t TextbufferTheme) -> &'t TextTheme {
         match self.token_type {
-            TokenType::Comment(..) => return context.theme.panel.comment,
-            TokenType::Operator(..) => return context.theme.panel.operator,
-            TokenType::Keyword(..) => return context.theme.panel.keyword,
-            TokenType::Identifier(..) => return context.theme.panel.identifier,
-            TokenType::TypeIdentifier(..) => return context.theme.panel.type_identifier,
-            TokenType::Character(..) => return context.theme.panel.character,
-            TokenType::String(..) => return context.theme.panel.string,
-            TokenType::Integer(..) => return context.theme.panel.integer,
-            TokenType::Float(..) => return context.theme.panel.float,
-            TokenType::Invalid(..) => return context.theme.panel.error,
-            TokenType::Ignored => return context.theme.panel.text,
+            TokenType::Comment(..) => return &theme.comment_theme,
+            TokenType::Operator(..) => return &theme.operator_theme,
+            TokenType::Keyword(..) => return &theme.keyword_theme,
+            TokenType::Identifier(..) => return &theme.identifier_theme,
+            TokenType::TypeIdentifier(..) => return &theme.type_identifier_theme,
+            TokenType::Character(..) => return &theme.character_theme,
+            TokenType::String(..) => return &theme.string_theme,
+            TokenType::Integer(..) => return &theme.integer_theme,
+            TokenType::Float(..) => return &theme.float_theme,
+            TokenType::Invalid(..) => return &theme.invalid_theme,
+            TokenType::Ignored => return &theme.text_theme,
         }
     }
-
-    pub fn get_style(&self, context: &Context) -> TextStyle {
-        match self.token_type {
-            TokenType::Comment(..) => return context.theme.panel.comment_style,
-            TokenType::Operator(..) => return context.theme.panel.operator_style,
-            TokenType::Keyword(..) => return context.theme.panel.keyword_style,
-            TokenType::Identifier(..) => return context.theme.panel.identifier_style,
-            TokenType::TypeIdentifier(..) => return context.theme.panel.type_identifier_style,
-            TokenType::Character(..) => return context.theme.panel.character_style,
-            TokenType::String(..) => return context.theme.panel.string_style,
-            TokenType::Integer(..) => return context.theme.panel.integer_style,
-            TokenType::Float(..) => return context.theme.panel.float_style,
-            TokenType::Invalid(..) => return context.theme.panel.error_style,
-            TokenType::Ignored => return context.theme.panel.text_style,
-        }
-    }*/
 }

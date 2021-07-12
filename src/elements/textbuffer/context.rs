@@ -12,6 +12,7 @@ pub struct TextbufferContext {
     pub unfocused_selections: bool,
     pub start_at_symbol: bool,
     pub multiline: bool,
+    pub selection_gap: usize,
 }
 
 impl TextbufferContext {
@@ -29,6 +30,7 @@ impl TextbufferContext {
             unfocused_selections: true,
             start_at_symbol: true,
             multiline: true,
+            selection_gap: 8,
         }
     }
 
@@ -45,6 +47,7 @@ impl TextbufferContext {
             unfocused_selections: false,
             start_at_symbol: false,
             multiline: false,
+            selection_gap: 0,
         }
     }
 

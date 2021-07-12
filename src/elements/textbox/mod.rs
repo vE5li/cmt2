@@ -6,7 +6,7 @@ use dialogues::DialogueTheme;
 use elements::{ Textbuffer, TextbufferContext, Selection };
 use interface::InterfaceContext;
 use input::Action;
-use system::Filebuffer;
+use system::{ Filebuffer, LanguageManager };
 
 use sfml::system::Vector2f;
 use sfml::graphics::*;
@@ -31,30 +31,32 @@ pub struct TextBox {
 
 impl TextBox {
 
-    pub fn new(description: &'static str, displacement: usize) -> Self {
-        let textbuffer = Textbuffer::new(Vector2f::new(400., 50.), Vector2f::new(0., 0.), ' ', false, false, false);
+    pub fn new(language_manager: &mut LanguageManager, description: &'static str, displacement: usize) -> Self {
+        let language = SharedString::from("dialogue");
+        let textbuffer = Textbuffer::new(0, Vector2f::new(400., 50.), Vector2f::new(0., 0.), ' ', false, false, false);
 
         Self {
             description: SharedString::from(description),
             textbuffer: textbuffer,
             textbuffer_context: TextbufferContext::textbox(),
-            filebuffer: Filebuffer::new(SharedString::from(" ")),
+            filebuffer: Filebuffer::new(language_manager, language, SharedString::from(" ")),
             selection: Selection::new(0, 0, 0),
             displacement: displacement,
         }
     }
 
-    pub fn from(description: &'static str, displacement: usize, text: SharedString) -> Self {
+    pub fn from(language_manager: &mut LanguageManager, description: &'static str, displacement: usize, text: SharedString) -> Self {
 
         let last_index = text.len();
-        let textbuffer = Textbuffer::new(Vector2f::new(400., 50.), Vector2f::new(0., 0.), ' ', false, false, false);
+        let language = SharedString::from("dialogue");
+        let textbuffer = Textbuffer::new(0, Vector2f::new(400., 50.), Vector2f::new(0., 0.), ' ', false, false, false);
         //guaranteed!(textbuffer.set_text(text.clone()));
 
         Self {
             description: SharedString::from(description),
             textbuffer: textbuffer,
             textbuffer_context: TextbufferContext::textbox(),
-            filebuffer: Filebuffer::new(text),
+            filebuffer: Filebuffer::new(language_manager, language, text),
             selection: Selection::new(last_index, last_index, 0),
             displacement: displacement,
         }
@@ -66,28 +68,28 @@ impl TextBox {
         return padded_text;
     }
 
-    pub fn set_text(&mut self, text: SharedString) {
-        self.filebuffer.set_text(format_shared!("{} ", text));
+    pub fn set_text(&mut self, language_manager: &mut LanguageManager, text: SharedString) {
+        self.textbuffer.set_text(language_manager, &mut self.filebuffer, format_shared!("{} ", text));
         self.textbuffer.select_last_character(&mut self.filebuffer);
     }
 
-    pub fn set_text_without_save(&mut self, text: SharedString) {
-        self.filebuffer.set_text_without_save(format_shared!("{} ", text));
+    pub fn set_text_without_save(&mut self, language_manager: &mut LanguageManager, text: SharedString) {
+        self.textbuffer.set_text_without_save(language_manager, &mut self.filebuffer, format_shared!("{} ", text));
         self.textbuffer.select_last_character(&mut self.filebuffer);
     }
 
-    pub fn clear(&mut self) {
-        self.filebuffer.set_text(format_shared!(" "));
+    pub fn clear(&mut self, language_manager: &mut LanguageManager) {
+        self.textbuffer.set_text(language_manager, &mut self.filebuffer, format_shared!(" "));
         self.textbuffer.reset(&mut self.filebuffer);
     }
 
-    pub fn add_character(&mut self, character: Character) {
-        self.textbuffer.add_character(&self.textbuffer_context, &mut self.filebuffer, character);
+    pub fn add_character(&mut self, language_manager: &mut LanguageManager, character: Character) {
+        self.textbuffer.add_character(&self.textbuffer_context, language_manager, &mut self.filebuffer, character);
     }
 
-    pub fn handle_action(&mut self, action: Action) -> (bool, Option<bool>) {
+    pub fn handle_action(&mut self, language_manager: &mut LanguageManager, action: Action) -> (bool, Option<bool>) {
 
-        if let Some(unhandled_action) = self.textbuffer.handle_action(&self.textbuffer_context, &mut self.filebuffer, action) {
+        if let Some(unhandled_action) = self.textbuffer.handle_action(&self.textbuffer_context, language_manager, &mut self.filebuffer, action) {
             match action {
                 Action::Abort => return (true, Some(false)),
                 Action::Confirm => return (true, Some(true)),
@@ -103,7 +105,7 @@ impl TextBox {
 
         // make sure that size.y > dialogue_height ?
 
-        self.textbuffer.resize(Vector2f::new(size.x, dialogue_height));
+        self.textbuffer.resize(interface_context, Vector2f::new(size.x, dialogue_height));
         self.textbuffer.set_position(position);
     }
 
