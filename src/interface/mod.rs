@@ -51,7 +51,6 @@ pub struct Interface {
     action_dialogue: ActionDialogue,
     error_message: Option<SharedString>,
     popup: Popup,
-    history_index: usize,
 }
 
 impl Interface {
@@ -73,7 +72,6 @@ impl Interface {
             action_dialogue: ActionDialogue::new(),
             error_message: None,
             popup: Popup::new(),
-            history_index: 0,
         })
     }
 
@@ -179,7 +177,6 @@ impl Interface {
 
             let filebuffer = resource_manager.filebuffers.get_mut(&string_file_name).unwrap();
             self.textbuffer.set_text_without_save(filebuffer, filebuffer.get_text());
-            self.history_index = filebuffer.get_history_index();
             self.file_name = file_name;
         }
 
@@ -187,18 +184,9 @@ impl Interface {
         return None;
     }
 
-    pub fn update_from_textbuffer(&mut self, interface_context: &InterfaceContext, resource_manager: &mut ResourceManager) -> bool {
-        let filebuffer = resource_manager.filebuffers.get(&self.file_name.serialize()).unwrap();
-        let history_index = filebuffer.get_history_index();
-
-        if history_index != self.history_index {
-
-            // temp
-            self.history_index = history_index;
-            return true;
-        }
-
-        return false;
+    pub fn history_catch_up(&mut self, interface_context: &InterfaceContext, resource_manager: &mut ResourceManager) -> bool {
+        let filebuffer = resource_manager.filebuffers.get_mut(&self.file_name.serialize()).unwrap();
+        return self.textbuffer.history_catch_up(filebuffer);
     }
 
     pub fn handle_action(&mut self, interface_context: &InterfaceContext, resource_manager: &mut ResourceManager, action: Action) -> Option<Action> {

@@ -49,7 +49,7 @@ impl<'w> PoetWindow<'w> {
         let mut force_rerender = false;
         let mut handled = false;
 
-        if self.interface.update_from_textbuffer(interface_context, resource_manager) {
+        if self.interface.history_catch_up(interface_context, resource_manager) {
             force_rerender = true;
         }
 

@@ -68,17 +68,17 @@ impl TextBox {
 
     pub fn set_text(&mut self, text: SharedString) {
         self.filebuffer.set_text(format_shared!("{} ", text));
-        self.textbuffer.select_last_character(&self.filebuffer);
+        self.textbuffer.select_last_character(&mut self.filebuffer);
     }
 
     pub fn set_text_without_save(&mut self, text: SharedString) {
         self.filebuffer.set_text_without_save(format_shared!("{} ", text));
-        self.textbuffer.select_last_character(&self.filebuffer);
+        self.textbuffer.select_last_character(&mut self.filebuffer);
     }
 
     pub fn clear(&mut self) {
         self.filebuffer.set_text(format_shared!(" "));
-        self.textbuffer.reset();
+        self.textbuffer.reset(&mut self.filebuffer);
     }
 
     pub fn add_character(&mut self, character: Character) {
