@@ -64,13 +64,15 @@ impl Textbuffer {
     }
 
     pub fn set_text(&mut self, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer, text: SharedString) -> Status<()> {
-        filebuffer.set_text(text);
+        filebuffer.set_text(self.window_id, text);
+        self.history_index = filebuffer.get_history_index();
         self.reset(filebuffer);
         return filebuffer.retokenize(language_manager);
     }
 
     pub fn set_text_without_save(&mut self, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer, text: SharedString) -> Status<()> {
         filebuffer.set_text_without_save(text);
+        self.history_index = filebuffer.get_history_index();
         self.reset(filebuffer); // TODO: dont add change_selection_mode to undo queue
         return filebuffer.retokenize(language_manager);
     }
@@ -86,7 +88,7 @@ impl Textbuffer {
     }
 
     fn set_selection_mode(&mut self, filebuffer: &mut Filebuffer, mode: SelectionMode) {
-        filebuffer.change_selection_mode(self.window_id, self.mode, mode, true);
+        self.history_index = filebuffer.change_selection_mode(self.window_id, self.mode, mode, true);
         self.mode = mode;
     }
 
@@ -101,6 +103,7 @@ impl Textbuffer {
         self.selections = vec![Selection::new(0, 0, 0)];
         self.adding_selection = false;
         self.character_mode(filebuffer);
+        self.history_index = filebuffer.get_history_index();
     }
 
     pub fn scroll_up(&mut self, textbuffer_context: &TextbufferContext) {
@@ -259,6 +262,34 @@ impl Textbuffer {
         self.set_secondary_index(filebuffer, index, adjusted_index);
     }
 
+    fn move_selection_to_end_of_word(&mut self, filebuffer: &mut Filebuffer, index: usize) {
+        let primary_index = self.selections[index].primary_index;
+        let token = filebuffer.get_token_from_index(primary_index);
+        let new_primary = token.index + token.length - 1;
+        self.set_primary_index(filebuffer, index, new_primary);
+    }
+
+    fn move_selection_to_start_of_word(&mut self, filebuffer: &mut Filebuffer, index: usize) {
+        let primary_index = self.selections[index].primary_index;
+        let token = filebuffer.get_token_from_index(primary_index);
+        let new_primary = token.index;
+        self.set_primary_index(filebuffer, index, new_primary);
+    }
+
+    fn move_secondary_to_end_of_word(&mut self, filebuffer: &mut Filebuffer, index: usize) {
+        let secondary_index = self.selections[index].secondary_index;
+        let token = filebuffer.get_token_from_index(secondary_index);
+        let new_secondary = token.index + token.length - 1;
+        self.set_secondary_index(filebuffer, index, new_secondary);
+    }
+
+    fn move_secondary_to_start_of_word(&mut self, filebuffer: &mut Filebuffer, index: usize) {
+        let secondary_index = self.selections[index].secondary_index;
+        let token = filebuffer.get_token_from_index(secondary_index);
+        let new_secondary = token.index;
+        self.set_secondary_index(filebuffer, index, new_secondary);
+    }
+
     fn selection_smallest_index(&self, index: usize) -> usize {
         return min(self.selections[index].primary_index, self.selections[index].secondary_index);
     }
@@ -326,16 +357,16 @@ impl Textbuffer {
 
     fn validate_text(&mut self, filebuffer: &mut Filebuffer) {
         if filebuffer.is_empty() || filebuffer.last_character() != self.padding {
-            self.insert_text(filebuffer, filebuffer.last_buffer_index(), self.padding.to_string());
+            self.insert_text(filebuffer, filebuffer.length(), self.padding.to_string());
         }
     }
 
     fn insert_text(&mut self, filebuffer: &mut Filebuffer, buffer_index: usize, text: SharedString) {
-        self.history_index = filebuffer.insert_text(buffer_index, text, true);
+        self.history_index = filebuffer.insert_text(self.window_id, buffer_index, text, true);
     }
 
     fn remove_text(&mut self, filebuffer: &mut Filebuffer, buffer_index: usize, length: usize) {
-        self.history_index = filebuffer.remove_text(buffer_index, length, true);
+        self.history_index = filebuffer.remove_text(self.window_id, buffer_index, length, true);
         self.validate_text(filebuffer);
     }
 
@@ -963,14 +994,15 @@ impl Textbuffer {
         if !self.mode.is_token() {
             self.set_selection_mode(filebuffer, SelectionMode::Token);
 
-            // CAPTURE ENTIRE SELECTION AS WORDS
-            //for index in 0..self.selections.len() {
-            //    self.selections[index].reset();
-            //    let token_index = self.token_from_index(self.selections[index].index);
-            //    let new_index = filebuffer.tokens[token_index].index;
-            //    let length = filebuffer.tokens[token_index].length;
-            //    self.selections[index].set_index_length(new_index, length);
-            //}
+            for index in 0..self.selections.len() {
+                if self.is_selection_inverted(index) {
+                    self.move_secondary_to_end_of_word(filebuffer, index);
+                    self.move_selection_to_start_of_word(filebuffer, index);
+                } else {
+                    self.move_secondary_to_start_of_word(filebuffer, index);
+                    self.move_selection_to_end_of_word(filebuffer, index);
+                }
+            }
 
             //self.merge_overlapping_selections();
         }
@@ -1141,16 +1173,52 @@ impl Textbuffer {
         }
     }
 
+    fn adjust_selections(&mut self, action: BufferAction) {
+        match action {
+            BufferAction::RemoveText(_window_id, text, index) => {
+                let length = text.len();
+
+                // additional logic for selections being deleted completely
+
+                for selection in &mut self.selections {
+                    if selection.primary_index >= index {
+                        selection.primary_index -= length;
+                    }
+                    if selection.secondary_index >= index {
+                        selection.secondary_index -= length;
+                    }
+                }
+            },
+            BufferAction::InsertText(_window_id, text, index) => {
+                let length = text.len();
+
+                // additional logic for selections being deleted completely
+
+                for selection in &mut self.selections {
+                    if selection.primary_index >= index {
+                        selection.primary_index += length;
+                    }
+                    if selection.secondary_index >= index {
+                        selection.secondary_index += length;
+                    }
+                }
+            },
+            invalid => panic!("buffer action {:?} may not be adjusted", invalid),
+        }
+    }
+
     pub fn history_catch_up(&mut self, filebuffer: &mut Filebuffer) -> bool {
         let history_index = filebuffer.get_history_index();
         let force_rerender = self.history_index != history_index;
 
         while self.history_index > history_index {
             self.history_index -= 1;
-            let action = filebuffer.get_action(self.history_index);
+            let action = filebuffer.get_action(self.history_index).invert();
 
             if action.is_selection(self.window_id) {
-                self.do_buffer_action(action.invert());
+                self.do_buffer_action(action);
+            } else if action.is_other_text(self.window_id) {
+                self.adjust_selections(action);
             }
         }
 
@@ -1160,6 +1228,8 @@ impl Textbuffer {
 
             if action.is_selection(self.window_id) {
                 self.do_buffer_action(action);
+            } else if action.is_other_text(self.window_id) {
+                self.adjust_selections(action);
             }
         }
 
@@ -1167,14 +1237,14 @@ impl Textbuffer {
     }
 
     fn undo(&mut self, textbuffer_context: &TextbufferContext, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer) {
-        filebuffer.undo(language_manager);
+        filebuffer.undo(language_manager, self.window_id);
         if self.history_catch_up(filebuffer) {
             self.check_selection_gaps(textbuffer_context, filebuffer);
         }
     }
 
     fn redo(&mut self, textbuffer_context: &TextbufferContext, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer) {
-        filebuffer.redo(language_manager);
+        filebuffer.redo(language_manager, self.window_id);
         if self.history_catch_up(filebuffer) {
             self.check_selection_gaps(textbuffer_context, filebuffer);
         }
@@ -1619,6 +1689,9 @@ impl Textbuffer {
 
     pub fn render(&self, framebuffer: &mut RenderTexture, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &TextbufferTheme, filebuffer: &Filebuffer, scaler: f32, focused: bool) {
         Field::render(framebuffer, interface_context, &theme.background_theme, self.size, self.position, scaler);
+
+        // line_number, highlighted, buffer_index
+        //let line_array = ;
 
         if textbuffer_context.selection_lines && (focused || textbuffer_context.unfocused_selections) {
             self.render_selection_lines(framebuffer, interface_context, textbuffer_context, theme, filebuffer);

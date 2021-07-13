@@ -46,6 +46,7 @@ pub struct Interface {
     open_file_dialogue: OpenFileDialogue,
     loaded_buffers_dialogue: LoadedBuffersDialogue,
     set_language_dialogue: SetLanguageDialogue,
+    set_theme_dialogue: SetThemeDialogue,
     find_replace_dialogue: FindReplaceDialogue,
     action_dialogue: ActionDialogue,
     error_message: Option<SharedString>,
@@ -69,6 +70,7 @@ impl Interface {
             open_file_dialogue: OpenFileDialogue::new(language_manager),
             loaded_buffers_dialogue: LoadedBuffersDialogue::new(language_manager),
             set_language_dialogue: SetLanguageDialogue::new(language_manager),
+            set_theme_dialogue: SetThemeDialogue::new(language_manager),
             find_replace_dialogue: FindReplaceDialogue::new(language_manager),
             action_dialogue: ActionDialogue::new(language_manager),
             error_message: None,
@@ -92,6 +94,7 @@ impl Interface {
         self.open_file_dialogue.update_layout(interface_context, &theme.dialogue_theme, size, position);
         self.loaded_buffers_dialogue.update_layout(interface_context, &theme.dialogue_theme, size, position);
         self.set_language_dialogue.update_layout(interface_context, &theme.dialogue_theme, size, position);
+        self.set_theme_dialogue.update_layout(interface_context, &theme.dialogue_theme, size, position);
         self.find_replace_dialogue.update_layout(interface_context, &theme.dialogue_theme, size, position);
         self.action_dialogue.update_layout(interface_context, &theme.dialogue_theme, size, position);
 
@@ -107,8 +110,12 @@ impl Interface {
 
         let language = SharedString::from("none");
         let new_name = format!("<unnamed {}>", resource_manager.next_index());
-        let filebuffer = Filebuffer::new(language_manager, language, SharedString::from("\n"));
+
+        let mut filebuffer = Filebuffer::new(language_manager, language, SharedString::from("\n"));
+
+        self.textbuffer.reset(&mut filebuffer);
         resource_manager.filebuffers.insert(String::from(&new_name), filebuffer);
+
         self.file_name = SharedString::from(&new_name);
 
         // update language
@@ -191,7 +198,7 @@ impl Interface {
         return self.textbuffer.history_catch_up(filebuffer);
     }
 
-    pub fn handle_action(&mut self, interface_context: &InterfaceContext, resource_manager: &mut ResourceManager, language_manager: &mut LanguageManager, action: Action) -> Option<Action> {
+    pub fn handle_action(&mut self, interface_context: &InterfaceContext, resource_manager: &mut ResourceManager, language_manager: &mut LanguageManager, action: Action, theme_name: &mut SharedString) -> Option<Action> {
 
         if self.error_message.is_some() {
             self.error_message = None;
@@ -208,13 +215,12 @@ impl Interface {
                 let (action_handled, status) = self.open_file_dialogue.handle_action(interface_context, language_manager, action);
 
                 if let Some(completed) = status {
+                    self.dialogue_mode = DialogueMode::None;
+
                     if completed {
-                        let file_name = self.open_file_dialogue.file_name_box.get();
+                        let file_name = self.open_file_dialogue.get();
                         self.open_buffer(resource_manager, language_manager, file_name);
                     }
-
-                    self.dialogue_mode = DialogueMode::None;
-                    return None;
                 }
 
                 match action_handled {
@@ -227,13 +233,12 @@ impl Interface {
                 let (action_handled, status) = self.loaded_buffers_dialogue.handle_action(interface_context, language_manager, action);
 
                 if let Some(completed) = status {
+                    self.dialogue_mode = DialogueMode::None;
+
                     if completed {
-                        let file_name = self.loaded_buffers_dialogue.buffers_box.get();
+                        let file_name = self.loaded_buffers_dialogue.get();
                         self.open_buffer(resource_manager, language_manager, file_name);
                     }
-
-                    self.dialogue_mode = DialogueMode::None;
-                    return None;
                 }
 
                 match action_handled {
@@ -246,16 +251,31 @@ impl Interface {
                 let (action_handled, status) = self.set_language_dialogue.handle_action(interface_context, language_manager, action);
 
                 if let Some(completed) = status {
+                    self.dialogue_mode = DialogueMode::None;
 
                     if completed {
-                        let language = self.set_language_dialogue.language_box.get();
+                        let language = self.set_language_dialogue.get();
                         let filebuffer = resource_manager.filebuffers.get_mut(&self.file_name.serialize()).unwrap();
                         confirm_or_error!(self, filebuffer.set_language(language_manager, language));
                     }
+                }
 
-                    self.set_language_dialogue.language_box.clear(language_manager);
+                match action_handled {
+                    true => return None,
+                    false => return Some(action),
+                }
+            },
+
+            DialogueMode::SetTheme => {
+                let (action_handled, status) = self.set_theme_dialogue.handle_action(interface_context, language_manager, action);
+
+                if let Some(completed) = status {
                     self.dialogue_mode = DialogueMode::None;
-                    return None;
+
+                    if completed {
+                        *theme_name = self.set_theme_dialogue.get();
+                        return Some(Action::Reload);
+                    }
                 }
 
                 match action_handled {
@@ -318,13 +338,11 @@ impl Interface {
                 let (action_handled, status) = self.action_dialogue.handle_action(interface_context, language_manager, action);
 
                 if let Some(completed) = status {
-                    let literal = self.action_dialogue.action_box.get();
-                    self.action_dialogue.action_box.clear(language_manager);
                     self.dialogue_mode = DialogueMode::None;
 
                     if completed {
-                        let action = confirm_or_error!(self, Action::from_literal(&literal));
-                        return self.handle_action(interface_context, resource_manager, language_manager, action);
+                        let action = confirm_or_error!(self, Action::from_literal(&self.action_dialogue.get()));
+                        return self.handle_action(interface_context, resource_manager, language_manager, action, theme_name);
                     }
                 }
 
@@ -338,10 +356,11 @@ impl Interface {
         if let Some(action) = unhandled_action {
             match action {
                 Action::NewFile => handle_return!(self.new_file(resource_manager, language_manager)),
-                Action::OpenFile => handle_return!(self.open_open_file_dialogue()),
+                Action::OpenFile => handle_return!(self.open_open_file_dialogue(language_manager)),
                 Action::LoadedBuffers => handle_return!(self.open_loaded_buffers_dialogue(resource_manager, language_manager)),
                 Action::SaveFile => handle_return!(self.save_file()),
                 //Action::SaveAllFiles => handle_me_in_core,
+                Action::SetTheme => handle_return!(self.open_set_theme_dialogue(language_manager)),
                 Action::SetLanguage => handle_return!(self.open_set_language_dialogue(language_manager)),
                 Action::FindReplace => handle_return!(self.open_find_replace_dialogue(language_manager)),
                 Action::Action => handle_return!(self.open_action_dialogue()),
@@ -358,7 +377,7 @@ impl Interface {
         self.dialogue_mode = DialogueMode::None;
     }
 
-    fn open_open_file_dialogue(&mut self) {
+    fn open_open_file_dialogue(&mut self, language_manager: &mut LanguageManager) {
 
         self.dialogue_mode = DialogueMode::OpenFile;
     }
@@ -373,6 +392,12 @@ impl Interface {
 
         self.dialogue_mode = DialogueMode::SetLanguage;
         self.set_language_dialogue.clear(language_manager);
+    }
+
+    fn open_set_theme_dialogue(&mut self, language_manager: &mut LanguageManager) {
+
+        self.dialogue_mode = DialogueMode::SetTheme;
+        self.set_theme_dialogue.clear(language_manager);
     }
 
     fn open_find_replace_dialogue(&mut self, language_manager: &mut LanguageManager) {
@@ -402,6 +427,8 @@ impl Interface {
 
             DialogueMode::SetLanguage => self.set_language_dialogue.add_character(language_manager, character),
 
+            DialogueMode::SetTheme => self.set_theme_dialogue.add_character(language_manager, character),
+
             DialogueMode::FindReplace(..) => {
 
                 self.find_replace_dialogue.add_character(language_manager, character);
@@ -430,6 +457,7 @@ impl Interface {
             DialogueMode::OpenFile => self.open_file_dialogue.render(framebuffer, interface_context, &theme.dialogue_theme),
             DialogueMode::LoadedBuffers => self.loaded_buffers_dialogue.render(framebuffer, interface_context, &theme.dialogue_theme),
             DialogueMode::SetLanguage => self.set_language_dialogue.render(framebuffer, interface_context, &theme.dialogue_theme),
+            DialogueMode::SetTheme => self.set_theme_dialogue.render(framebuffer, interface_context, &theme.dialogue_theme),
             DialogueMode::FindReplace(..) => self.find_replace_dialogue.render(framebuffer, interface_context, &theme.dialogue_theme),
             DialogueMode::Action => self.action_dialogue.render(framebuffer, interface_context, &theme.dialogue_theme),
             DialogueMode::None => { },

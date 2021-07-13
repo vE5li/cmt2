@@ -9,6 +9,7 @@ pub struct Instance<'i> {
     windows: Vec<PoetWindow<'i>>,
     interface_context: InterfaceContext,
     interface_theme: InterfaceTheme,
+    theme_name: SharedString,
 
     resource_manager: ResourceManager,
     language_manager: LanguageManager,
@@ -25,17 +26,20 @@ impl<'i> Instance<'i> {
         //let (interface_context, textbuffer_context) = display!(load_context(&configuration_directory));
         //let interface_theme = display!(InterfaceTheme::new(&configuration_directory));
 
-        let theme_file = format_shared!("/home/.config/poet/themes/new.data");
+        let theme_name = SharedString::from("dark");
+
+        let theme_file = format_shared!("/home/.config/poet/themes/{}.data", &theme_name);
         let theme_map = display!(read_map(&theme_file));
         let mut theme = display!(theme_map.index(&identifier!("interface")));
 
         let interface_context = display!(InterfaceContext::temp());
-        let interface_theme = InterfaceTheme::load(theme);
+        let interface_theme = InterfaceTheme::load(theme, &theme_name);
 
         Self {
             windows: Vec::new(),
             interface_context: interface_context,
             interface_theme: interface_theme,
+            theme_name: theme_name,
 
             resource_manager: ResourceManager::new(),
             language_manager: LanguageManager::new(),
@@ -63,7 +67,7 @@ impl<'i> Instance<'i> {
         let mut force_update = false;
 
         'handle: while index < self.windows.len() {
-            for action in self.windows[index].handle_input(&self.interface_context, &self.interface_theme, &mut self.resource_manager, &mut self.language_manager) {
+            for action in self.windows[index].handle_input(&self.interface_context, &self.interface_theme, &mut self.resource_manager, &mut self.language_manager, &mut self.theme_name) {
                 match action {
 
                     Action::CloseWindow => {
@@ -139,12 +143,12 @@ impl<'i> Instance<'i> {
 
                     Action::Reload => {
 
-                        let theme_file = format_shared!("/home/.config/poet/themes/new.data");
+                        let theme_file = format_shared!("/home/.config/poet/themes/{}.data", &self.theme_name);
                         let theme_map = display!(read_map(&theme_file));
                         let mut theme = display!(theme_map.index(&identifier!("interface")));
 
                         let interface_context = display!(InterfaceContext::temp());
-                        let interface_theme = InterfaceTheme::load(theme);
+                        let interface_theme = InterfaceTheme::load(theme, &self.theme_name);
 
                         self.interface_context = interface_context;
                         self.interface_theme = interface_theme;

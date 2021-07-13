@@ -7,6 +7,7 @@ pub enum DialogueMode {
     OpenFile,
     LoadedBuffers,
     SetLanguage,
+    SetTheme,
     FindReplace(Vec<Selection>),
     Action,
 }

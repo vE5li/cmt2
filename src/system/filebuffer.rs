@@ -60,6 +60,15 @@ impl Filebuffer {
         return self.retokenize(language_manager);
     }
 
+    pub fn get_token_from_index(&self, index: usize) -> Token {
+        for token in &self.tokens {
+            if token.index + token.length > index {
+                return token.clone();
+            }
+        }
+        panic!("index from token failed");
+    }
+
     fn insert_text_raw(&mut self, index: usize, text: &SharedString) {
         for offset in (0..text.len()).rev() {
             match offset == self.text.len() {
@@ -87,25 +96,25 @@ impl Filebuffer {
         return self.history_index;
     }
 
-    pub fn insert_text(&mut self, index: usize, text: SharedString, combine: bool) -> usize {
+    pub fn insert_text(&mut self, window_id: usize, index: usize, text: SharedString, combine: bool) -> usize {
         self.insert_text_raw(index, &text);
         self.history.pop_until(self.history_index);
-        self.history.insert_text(index, text, combine);
+        self.history.insert_text(window_id, index, text, combine);
         return self.advance(1);
     }
 
-    pub fn remove_text(&mut self, index: usize, length: usize, combine: bool) -> usize {
+    pub fn remove_text(&mut self, window_id: usize, index: usize, length: usize, combine: bool) -> usize {
         let removed_text = self.text.slice(index, index + length - 1);
         self.remove_text_raw(index, length);
         self.history.pop_until(self.history_index);
-        self.history.remove_text(removed_text, index, combine);
+        self.history.remove_text(window_id, removed_text, index, combine);
         return self.advance(1);
     }
 
-    pub fn set_text(&mut self, text: SharedString) -> usize {
+    pub fn set_text(&mut self, window_id: usize, text: SharedString) -> usize {
         self.history.pop_until(self.history_index);
-        self.history.remove_text(self.text.clone(), 0, false);
-        self.history.insert_text(0, text.clone(), false);
+        self.history.remove_text(window_id, self.text.clone(), 0, false);
+        self.history.insert_text(window_id, 0, text.clone(), false);
         self.text = text;
         return self.advance(2);
     }
@@ -180,59 +189,93 @@ impl Filebuffer {
 
     fn do_buffer_action(&mut self, action: BufferAction) {
         match action {
-            BufferAction::RemoveText(text, index) => self.remove_text_raw(index, text.len()),
-            BufferAction::InsertText(text, index) => self.insert_text_raw(index, &text),
+            BufferAction::RemoveText(_window_id, text, index) => self.remove_text_raw(index, text.len()),
+            BufferAction::InsertText(_window_id, text, index) => self.insert_text_raw(index, &text),
             invalid => panic!("buffer action {:?} may not be executed", invalid),
         }
     }
 
-    pub fn undo(&mut self, language_manager: &mut LanguageManager) {
+    pub fn undo(&mut self, language_manager: &mut LanguageManager, window_id: usize) {
         if self.history_index == 0 {
             return;
         }
 
         let mut force_retokenize = false;
+        let mut history_index = self.history_index - 1;
+        let mut action = self.history.get(history_index);
 
-        loop {
-            self.history_index -= 1;
-            let action = self.history.get(self.history_index);
+        while !action.is_text() && !action.is_selection(window_id) {
+            if history_index == 0 {
+                return;
+            }
+
+            history_index -= 1;
+            action = self.history.get(history_index);
+        }
+
+        while history_index > 0 && !action.is_text() && !action.is_selection(window_id) {
+            action = self.history.get(history_index);
+        }
+
+        while history_index > 0 {
 
             if action.is_text() {
-                self.do_buffer_action(action.invert());
+                self.do_buffer_action(action.clone().invert());
                 force_retokenize = true;
             }
 
-            if self.history_index == 0 || !self.history.is_action_combined(self.history_index) {
+            if !self.history.is_action_combined(history_index) {
                 break;
             }
+
+            history_index -= 1;
+            action = self.history.get(history_index);
         }
+
+        self.history_index = history_index;
 
         if force_retokenize {
             self.retokenize(language_manager);
         }
     }
 
-    pub fn redo(&mut self, language_manager: &mut LanguageManager) {
+    pub fn redo(&mut self, language_manager: &mut LanguageManager, window_id: usize) {
         let history_length = self.history.length();
         if self.history_index >= history_length {
             return;
         }
 
         let mut force_retokenize = false;
+        let mut history_index = self.history_index;
+        let mut action = self.history.get(history_index);
 
-        loop {
-            let action = self.history.get(self.history_index);
-            self.history_index += 1;
+        while !action.is_text() && !action.is_selection(window_id) {
+            history_index += 1;
+
+            if history_index >= history_length {
+                return;
+            }
+
+            action = self.history.get(history_index);
+        }
+
+        while history_index < history_length {
 
             if action.is_text() {
-                self.do_buffer_action(action);
+                self.do_buffer_action(action.clone());
                 force_retokenize = true;
             }
 
-            if self.history_index >= history_length || !self.history.is_action_combined(self.history_index) {
+            history_index += 1;
+
+            if history_index >= history_length || !self.history.is_action_combined(history_index) {
                 break;
             }
+
+            action = self.history.get(history_index);
         }
+
+        self.history_index = history_index;
 
         if force_retokenize {
             self.retokenize(language_manager);

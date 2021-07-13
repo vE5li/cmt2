@@ -10,14 +10,14 @@ use system::{ ResourceManager, LanguageManager };
 use input::Action;
 
 pub struct LoadedBuffersDialogue {
-    pub buffers_box: ComboBox,
+    combobox: ComboBox,
 }
 
 impl LoadedBuffersDialogue {
 
     pub fn new(language_manager: &mut LanguageManager) -> Self {
         Self {
-            buffers_box: ComboBox::new(language_manager, "recently opened files", 0, false, false, Vec::new()),
+            combobox: ComboBox::new(language_manager, "recently opened files", 0, false, false, Vec::new()),
         }
     }
 
@@ -27,27 +27,31 @@ impl LoadedBuffersDialogue {
             return (true, Some(false));
         }
 
-        return self.buffers_box.handle_action(interface_context, language_manager, action);
+        return self.combobox.handle_action(interface_context, language_manager, action);
     }
 
     pub fn update_variants(&mut self, resource_manager: &ResourceManager) {
         let variants = resource_manager.filebuffers.iter().map(|(name, _)| SharedString::from(&name)).collect();
-        self.buffers_box.variants = variants;
+        self.combobox.variants = variants;
+    }
+
+    pub fn get(&self) -> SharedString {
+        return self.combobox.get();
     }
 
     pub fn clear(&mut self, language_manager: &mut LanguageManager) {
-        self.buffers_box.clear(language_manager);
+        self.combobox.clear(language_manager);
     }
 
     pub fn add_character(&mut self, language_manager: &mut LanguageManager, character: Character) {
-        self.buffers_box.add_character(language_manager, character);
+        self.combobox.add_character(language_manager, character);
     }
 
     pub fn update_layout(&mut self, interface_context: &InterfaceContext, theme: &DialogueTheme, size: Vector2f, position: Vector2f) {
-        self.buffers_box.update_layout(interface_context, theme, size, position);
+        self.combobox.update_layout(interface_context, theme, size, position);
     }
 
     pub fn render(&self, framebuffer: &mut RenderTexture, interface_context: &InterfaceContext, theme: &DialogueTheme) {
-        self.buffers_box.render(framebuffer, interface_context, theme, true);
+        self.combobox.render(framebuffer, interface_context, theme, true);
     }
 }

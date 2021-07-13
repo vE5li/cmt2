@@ -4,8 +4,8 @@ use elements::SelectionMode;
 
 #[derive(Clone, Debug)]
 pub enum BufferAction {
-    InsertText(SharedString, usize),
-    RemoveText(SharedString, usize),
+    InsertText(usize, SharedString, usize),
+    RemoveText(usize, SharedString, usize),
     AddSelection(usize, usize, usize, usize, usize),
     RemoveSelection(usize, usize, usize, usize, usize),
     ChangePrimaryIndex(usize, usize, usize, usize),
@@ -24,6 +24,14 @@ impl BufferAction {
         }
     }
 
+    pub fn is_other_text(&self, current_id: usize) -> bool {
+        match self {
+            BufferAction::InsertText(window_id, ..) => return current_id != *window_id,
+            BufferAction::RemoveText(window_id, ..) => return current_id != *window_id,
+            _other => return false,
+        }
+    }
+
     pub fn is_selection(&self, current_id: usize) -> bool {
         match self {
             BufferAction::AddSelection(window_id, ..) => return current_id == *window_id,
@@ -38,8 +46,8 @@ impl BufferAction {
 
     pub fn invert(self) -> Self {
         match self {
-            BufferAction::InsertText(text, index) => return BufferAction::RemoveText(text, index),
-            BufferAction::RemoveText(text, index) => return BufferAction::InsertText(text, index),
+            BufferAction::InsertText(window_id, text, index) => return BufferAction::RemoveText(window_id, text, index),
+            BufferAction::RemoveText(window_id, text, index) => return BufferAction::InsertText(window_id, text, index),
             BufferAction::AddSelection(window_id, index, primary_index, secondary_index, offset) => return BufferAction::RemoveSelection(window_id, index, primary_index, secondary_index, offset),
             BufferAction::RemoveSelection(window_id, index, primary_index, secondary_index, offset) => return BufferAction::AddSelection(window_id, index, primary_index, secondary_index, offset),
             BufferAction::ChangePrimaryIndex(window_id, index, previous, new) => return BufferAction::ChangePrimaryIndex(window_id, index, new, previous),

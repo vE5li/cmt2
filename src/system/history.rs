@@ -49,12 +49,12 @@ impl History {
         self.actions.push(BufferActionContext::new(action, combined));
     }
 
-    pub fn insert_text(&mut self, index: usize, text: SharedString, combine: bool) {
-        self.append_action(BufferAction::InsertText(text, index), combine);
+    pub fn insert_text(&mut self, window_id: usize, index: usize, text: SharedString, combine: bool) {
+        self.append_action(BufferAction::InsertText(window_id, text, index), combine);
     }
 
-    pub fn remove_text(&mut self, text: SharedString, index: usize, combine: bool) {
-        self.append_action(BufferAction::RemoveText(text, index), combine);
+    pub fn remove_text(&mut self, window_id: usize, text: SharedString, index: usize, combine: bool) {
+        self.append_action(BufferAction::RemoveText(window_id, text, index), combine);
     }
 
     pub fn add_selection(&mut self, window_id: usize, index: usize, primary_index: usize, secondary_index: usize, offset: usize, combine: bool) {

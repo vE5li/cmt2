@@ -44,7 +44,7 @@ impl<'w> PoetWindow<'w> {
         });
     }
 
-    pub fn handle_input(&mut self, interface_context: &InterfaceContext, theme: &InterfaceTheme, resource_manager: &mut ResourceManager, language_manager: &mut LanguageManager) -> Vec<Action> {
+    pub fn handle_input(&mut self, interface_context: &InterfaceContext, theme: &InterfaceTheme, resource_manager: &mut ResourceManager, language_manager: &mut LanguageManager, theme_name: &mut SharedString) -> Vec<Action> {
         let mut action_queue = Vec::new();
         let mut force_rerender = false;
         let mut handled = false;
@@ -64,7 +64,7 @@ impl<'w> PoetWindow<'w> {
                         let key_event = KeyEvent::new(code, modifiers);
 
                         for action in interface_context.get_matching_actions(&key_event) {
-                            if let Some(unhandled_action) = self.interface.handle_action(interface_context, resource_manager, language_manager, action) {
+                            if let Some(unhandled_action) = self.interface.handle_action(interface_context, resource_manager, language_manager, action, theme_name) {
                                 if unhandled_action.is_global() {
                                     action_queue.push(unhandled_action);
                                     handled = true;

@@ -10,7 +10,7 @@ use interface::InterfaceContext;
 use input::Action;
 
 pub struct ActionDialogue {
-    pub action_box: ComboBox,
+    combobox: ComboBox,
 }
 
 impl ActionDialogue {
@@ -34,6 +34,7 @@ impl ActionDialogue {
             SharedString::from("loaded_buffers"),
             SharedString::from("save_file"),
             SharedString::from("set_language"),
+            SharedString::from("set_theme"),
             SharedString::from("find_replace"),
             SharedString::from("start"),
             SharedString::from("end"),
@@ -81,8 +82,16 @@ impl ActionDialogue {
         ];
 
         Self {
-            action_box: ComboBox::new(language_manager, "action", 0, false, false, actions),
+            combobox: ComboBox::new(language_manager, "action", 0, false, false, actions),
         }
+    }
+
+    pub fn get(&self) -> SharedString {
+        return self.combobox.get();
+    }
+
+    pub fn clear(&mut self, language_manager: &mut LanguageManager) {
+        self.combobox.clear(language_manager);
     }
 
     pub fn handle_action(&mut self, interface_context: &InterfaceContext, language_manager: &mut LanguageManager, action: Action) -> (bool, Option<bool>) {
@@ -91,18 +100,18 @@ impl ActionDialogue {
             return (true, Some(false));
         }
 
-        return self.action_box.handle_action(interface_context, language_manager, action);
+        return self.combobox.handle_action(interface_context, language_manager, action);
     }
 
     pub fn add_character(&mut self, language_manager: &mut LanguageManager, character: Character) {
-        self.action_box.add_character(language_manager, character);
+        self.combobox.add_character(language_manager, character);
     }
 
     pub fn update_layout(&mut self, interface_context: &InterfaceContext, theme: &DialogueTheme, size: Vector2f, position: Vector2f) {
-        self.action_box.update_layout(interface_context, theme, size, position);
+        self.combobox.update_layout(interface_context, theme, size, position);
     }
 
     pub fn render(&self, framebuffer: &mut RenderTexture, interface_context: &InterfaceContext, theme: &DialogueTheme) {
-        self.action_box.render(framebuffer, interface_context, theme, true);
+        self.combobox.render(framebuffer, interface_context, theme, true);
     }
 }

@@ -18,7 +18,7 @@ impl FieldTheme {
             background_color: get_color(&theme, "background_color", Color::BLUE),
             corner_radius: get_vector(&theme, "corner_radius", Vector4f::with(0.0)),
             border_width: get_float(&theme, "border_width", 0.0),
-            border_color: get_color(&theme, "background_color", Color::BLACK),
+            border_color: get_color(&theme, "border_color", Color::BLACK),
         }
     }
 }

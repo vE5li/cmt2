@@ -9,21 +9,21 @@ use dialogues::DialogueTheme;
 use interface::InterfaceContext;
 use input::Action;
 
-pub struct SetLanguageDialogue {
+pub struct SetThemeDialogue {
     combobox: ComboBox,
 }
 
-impl SetLanguageDialogue {
+impl SetThemeDialogue {
 
     pub fn new(language_manager: &mut LanguageManager) -> Self {
         Self {
-            combobox: ComboBox::new(language_manager, "language name", 0, false, false, vec![SharedString::from("cipher"), SharedString::from("c++"), SharedString::from("default"), SharedString::from("doofenshmirtz"), SharedString::from("entleman"), SharedString::from("none"), SharedString::from("rust"), SharedString::from("seamonkey")]),
+            combobox: ComboBox::new(language_manager, "theme name", 0, false, false, vec![SharedString::from("light"), SharedString::from("dark")]),
         }
     }
 
     pub fn handle_action(&mut self, interface_context: &InterfaceContext, language_manager: &mut LanguageManager, action: Action) -> (bool, Option<bool>) {
 
-        if let Action::SetLanguage = action {
+        if let Action::SetTheme = action {
             return (true, Some(false));
         }
 

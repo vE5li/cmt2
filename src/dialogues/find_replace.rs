@@ -10,8 +10,8 @@ use elements::TextBox;
 use input::Action;
 
 pub struct FindReplaceDialogue {
-    pub find_box: TextBox,
-    pub replace_box: TextBox,
+    find_textbox: TextBox,
+    replace_textbox: TextBox,
     find_focused: bool,
 }
 
@@ -19,8 +19,8 @@ impl FindReplaceDialogue {
 
     pub fn new(language_manager: &mut LanguageManager) -> Self {
         Self {
-            find_box: TextBox::new(language_manager, "find", 0),
-            replace_box: TextBox::new(language_manager, "replace", 1),
+            find_textbox: TextBox::new(language_manager, "find", 0),
+            replace_textbox: TextBox::new(language_manager, "replace", 1),
             find_focused: true,
         }
     }
@@ -47,7 +47,7 @@ impl FindReplaceDialogue {
         }
 
         if self.find_focused {
-            let (handled, status) = self.find_box.handle_action(language_manager, action);
+            let (handled, status) = self.find_textbox.handle_action(language_manager, action);
 
             if let Some(completed) = status {
                 if completed {
@@ -60,9 +60,9 @@ impl FindReplaceDialogue {
         }
 
 
-        let (handled, status) = self.replace_box.handle_action(language_manager, action);
+        let (handled, status) = self.replace_textbox.handle_action(language_manager, action);
         if let Some(completed) = status {
-            if completed && self.find_box.get().is_empty() {
+            if completed && self.find_textbox.get().is_empty() {
                 self.find_focused = true;
                 return (true, None);
             }
@@ -73,14 +73,14 @@ impl FindReplaceDialogue {
 
     pub fn add_character(&mut self, language_manager: &mut LanguageManager, character: Character) {
         match self.find_focused {
-            true => self.find_box.add_character(language_manager, character),
-            false => self.replace_box.add_character(language_manager, character),
+            true => self.find_textbox.add_character(language_manager, character),
+            false => self.replace_textbox.add_character(language_manager, character),
         }
     }
 
     pub fn reset(&mut self, language_manager: &mut LanguageManager) {
-        self.find_box.clear(language_manager);
-        self.replace_box.clear(language_manager);
+        self.find_textbox.clear(language_manager);
+        self.replace_textbox.clear(language_manager);
         self.find_focused = true;
     }
 
@@ -88,12 +88,12 @@ impl FindReplaceDialogue {
         let dialogue_height = theme.height * interface_context.font_size as f32;
         let replace_position = Vector2f::new(position.x, position.y + dialogue_height);
 
-        self.find_box.update_layout(interface_context, theme, size, position);
-        self.replace_box.update_layout(interface_context, theme, size, replace_position);
+        self.find_textbox.update_layout(interface_context, theme, size, position);
+        self.replace_textbox.update_layout(interface_context, theme, size, replace_position);
     }
 
     pub fn render(&self, framebuffer: &mut RenderTexture, interface_context: &InterfaceContext, theme: &DialogueTheme) {
-        self.find_box.render(framebuffer, interface_context, theme, self.find_focused);
-        self.replace_box.render(framebuffer, interface_context, theme, !self.find_focused);
+        self.find_textbox.render(framebuffer, interface_context, theme, self.find_focused);
+        self.replace_textbox.render(framebuffer, interface_context, theme, !self.find_focused);
     }
 }

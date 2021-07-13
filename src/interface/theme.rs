@@ -187,23 +187,14 @@ pub struct InterfaceTheme {
 
 impl InterfaceTheme {
 
-    pub fn load(theme: Option<Data>) -> Self {
+    pub fn load(theme: Option<Data>, name: &SharedString) -> Self {
         return Self {
-            name: SharedString::from("ree"),
+            name: name.clone(),
             textbuffer_theme: TextbufferTheme::load(get_subtheme(&theme, "textbuffer")),
             dialogue_theme: DialogueTheme::load(get_subtheme(&theme, "dialogue")),
             message_theme: MessageTheme::load(get_subtheme(&theme, "message")),
         }
     }
-
-    //pub fn temp() -> Self {
-    //    return Self {
-    //        name: SharedString::from("ree"),
-    //        textbuffer_theme: TextbufferTheme::temp(),
-    //        dialogue_theme: DialogueTheme::temp(),
-    //        popup_theme: PopupTheme::temp(),
-    //    }
-    //}
 }
 
 /*
