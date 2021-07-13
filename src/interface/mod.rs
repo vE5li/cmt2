@@ -91,6 +91,8 @@ impl Interface {
         let size = Vector2f::new(self.size.x - left_position - right_position, self.size.y - top_position);
         let position = Vector2f::new(left_position, top_position);
 
+        self.textbuffer.update_layout(interface_context);
+
         self.open_file_dialogue.update_layout(interface_context, &theme.dialogue_theme, size, position);
         self.loaded_buffers_dialogue.update_layout(interface_context, &theme.dialogue_theme, size, position);
         self.set_language_dialogue.update_layout(interface_context, &theme.dialogue_theme, size, position);

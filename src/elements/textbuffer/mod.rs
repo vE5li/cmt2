@@ -77,10 +77,14 @@ impl Textbuffer {
         return filebuffer.retokenize(language_manager);
     }
 
-    pub fn resize(&mut self, interface_context: &InterfaceContext, size: Vector2f) {
+    pub fn update_layout(&mut self, interface_context: &InterfaceContext) {
         let line_scaling = interface_context.line_spacing * interface_context.font_size as f32;
-        self.line_count = (size.y / line_scaling) as usize;
+        self.line_count = (self.size.y / line_scaling) as usize;
+    }
+
+    pub fn resize(&mut self, interface_context: &InterfaceContext, size: Vector2f) {
         self.size = size;
+        self.update_layout(interface_context);
     }
 
     pub fn set_position(&mut self, position: Vector2f) {
@@ -139,6 +143,8 @@ impl Textbuffer {
             return;
         }
 
+        // if self.line_count < selection_gap * 2 -> do something
+
         let selection = self.selections.last().unwrap();
         let line_number = self.line_number_from_index(filebuffer, selection.primary_index);
 
@@ -147,8 +153,8 @@ impl Textbuffer {
                 true => self.vertical_scroll = line_number - textbuffer_context.selection_gap,
                 false => self.vertical_scroll = 0,
             }
-        } else if line_number + textbuffer_context.selection_gap > self.vertical_scroll + self.line_count {
-            self.vertical_scroll += line_number + textbuffer_context.selection_gap - self.vertical_scroll - self.line_count;
+        } else if line_number + textbuffer_context.selection_gap + 1 > self.vertical_scroll + self.line_count {
+            self.vertical_scroll += line_number + textbuffer_context.selection_gap + 1 - self.vertical_scroll - self.line_count;
         }
     }
 
