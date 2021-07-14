@@ -269,12 +269,23 @@ impl ComboBox {
             _other => { },
         }
 
-        let (handled, status) = self.textbox.handle_action(language_manager, action);
+        if let Some(action) = self.textbox.handle_action(language_manager, action) {
+            match action {
 
-        match !handled && action.is_comfirm() && self.handle_confirm(language_manager) {
-            true => return (true, None),
-            false => return (handled, status),
+                Action::Confirm => {
+                    match self.handle_confirm(language_manager) {
+                        true => return (true, None),
+                        false => return (true, Some(true)),
+                    }
+                }
+
+                Action::Abort => return (true, Some(false)),
+
+                _unhandled => return (false, None),
+            }
         }
+
+        return (true, None);
     }
 
     pub fn add_character(&mut self, language_manager: &mut LanguageManager, character: Character) {

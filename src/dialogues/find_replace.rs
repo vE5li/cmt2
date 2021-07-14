@@ -46,7 +46,7 @@ impl FindReplaceDialogue {
             return (true, None);
         }
 
-        if self.find_focused {
+        /*if self.find_focused {
             let (handled, status) = self.find_textbox.handle_action(language_manager, action);
 
             if let Some(completed) = status {
@@ -66,9 +66,10 @@ impl FindReplaceDialogue {
                 self.find_focused = true;
                 return (true, None);
             }
-        }
+        }*/
 
-        return (handled, status);
+        //return (handled, status);
+        return (true, None);
     }
 
     pub fn add_character(&mut self, language_manager: &mut LanguageManager, character: Character) {

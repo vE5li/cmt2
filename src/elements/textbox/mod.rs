@@ -87,17 +87,8 @@ impl TextBox {
         self.textbuffer.add_character(&self.textbuffer_context, language_manager, &mut self.filebuffer, character);
     }
 
-    pub fn handle_action(&mut self, language_manager: &mut LanguageManager, action: Action) -> (bool, Option<bool>) {
-
-        if let Some(unhandled_action) = self.textbuffer.handle_action(&self.textbuffer_context, language_manager, &mut self.filebuffer, action) {
-            match action {
-                Action::Abort => return (true, Some(false)),
-                Action::Confirm => return (true, Some(true)),
-                _other => return (false, None),
-            }
-        }
-
-        return (true, None);
+    pub fn handle_action(&mut self, language_manager: &mut LanguageManager, action: Action) -> Option<Action> {
+        return self.textbuffer.handle_action(&self.textbuffer_context, language_manager, &mut self.filebuffer, action);
     }
 
     pub fn update_layout(&mut self, interface_context: &InterfaceContext, theme: &DialogueTheme, size: Vector2f, position: Vector2f) {
