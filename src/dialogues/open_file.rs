@@ -34,10 +34,6 @@ impl OpenFileDialogue {
         return self.filebox.get();
     }
 
-    pub fn clear(&mut self, language_manager: &mut LanguageManager) {
-        self.filebox.clear(language_manager);
-    }
-
     pub fn add_character(&mut self, language_manager: &mut LanguageManager, character: Character) {
         self.filebox.add_character(language_manager, character);
     }

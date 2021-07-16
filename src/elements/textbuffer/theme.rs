@@ -5,12 +5,27 @@ use sfml::system::Vector2f;
 use elements::{ TextfieldTheme, TextTheme, FieldTheme, SelectionTheme };
 use interface::{ get_subtheme, get_offset, get_float };
 
+pub struct StatusBarTheme {
+    pub textfield_theme: TextfieldTheme,
+    pub height: f32,
+}
+
+impl StatusBarTheme {
+
+    pub fn load(theme: Option<Data>) -> Self {
+        return Self {
+            textfield_theme: TextfieldTheme::load(get_subtheme(&theme, "textfield")),
+            height: get_float(&theme, "height", 1.5),
+        }
+    }
+}
+
 pub struct TextbufferTheme {
     pub background_theme: FieldTheme,
     pub selection_theme: SelectionTheme,
     pub new_selection_theme: SelectionTheme,
     pub selection_line_theme: FieldTheme,
-    pub status_bar_theme: TextfieldTheme,
+    pub status_bar_theme: StatusBarTheme,
     pub line_number_theme: TextfieldTheme,
     pub text_theme: TextTheme,
     pub comment_theme: TextTheme,
@@ -38,7 +53,7 @@ impl TextbufferTheme {
             selection_theme: SelectionTheme::load(get_subtheme(&theme, "selection")),
             new_selection_theme: SelectionTheme::load(get_subtheme(&theme, "new_selection")),
             selection_line_theme: FieldTheme::load(get_subtheme(&theme, "selection_line")),
-            status_bar_theme: TextfieldTheme::load(get_subtheme(&theme, "status_bar")),
+            status_bar_theme: StatusBarTheme::load(get_subtheme(&theme, "status_bar")),
             line_number_theme: TextfieldTheme::load(get_subtheme(&theme, "line_number")),
             text_theme: TextTheme::load(get_subtheme(&theme, "text")),
             comment_theme: TextTheme::load(get_subtheme(&theme, "comment")),

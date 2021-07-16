@@ -37,10 +37,6 @@ impl FileBox {
         return self.combobox.get();
     }
 
-    pub fn clear(&mut self, language_manager: &mut LanguageManager) {
-        self.combobox.clear(language_manager);
-    }
-
     fn entries_with_parent(mut entries: Vec<SharedString>, path: &SharedString, show_hidden_files: bool) -> Vec<SharedString> {
 
         let mut index = 0;

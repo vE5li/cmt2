@@ -15,7 +15,7 @@ pub struct Field { }
 impl Field {
 
     pub fn render(framebuffer: &mut RenderTexture, interface_context: &InterfaceContext, theme: &FieldTheme, size: Vector2f, position: Vector2f, scaler: f32) {
-        let mut rounded = RoundedRectangle::new(size, theme.corner_radius * Vector4f::with(scaler));
+        let rounded = RoundedRectangle::new(size, theme.corner_radius * Vector4f::with(scaler));
         let mut shape = CustomShape::new(Box::new(rounded));
         shape.set_fill_color(theme.background_color);
         shape.set_outline_thickness(interface_context.font_size as f32 * theme.border_width);

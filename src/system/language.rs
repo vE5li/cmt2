@@ -18,12 +18,6 @@ impl LanguageManager {
         }
     }
 
-    fn load_language(language: &SharedString) -> Status<Tokenizer> {
-        let file_path = format_shared!("/home/.config/poet/languages/{}.data", language);
-        let tokenizer_map = confirm!(read_map(&file_path)); // confirm!(read_map(&file_path), Message, "...");
-        return Tokenizer::new(&tokenizer_map);
-    }
-
     pub fn get_load(&mut self, language: &SharedString) -> Status<&Tokenizer> {
         let language_string = language.serialize();
 

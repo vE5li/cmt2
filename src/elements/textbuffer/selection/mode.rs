@@ -1,7 +1,7 @@
 #[derive(Copy, Clone, Debug)]
 pub enum SelectionMode {
     Character,
-    Token,
+    Word,
     Line,
 }
 
@@ -10,7 +10,7 @@ impl SelectionMode {
     pub fn name(&self) -> &'static str {
         match self {
             SelectionMode::Character => "character",
-            SelectionMode::Token => "token",
+            SelectionMode::Word => "word",
             SelectionMode::Line => "line",
         }
     }
@@ -22,9 +22,9 @@ impl SelectionMode {
         }
     }
 
-    pub fn is_token(&self) -> bool {
+    pub fn is_word(&self) -> bool {
         match self {
-            SelectionMode::Token => return true,
+            SelectionMode::Word => return true,
             _other => return false,
         }
     }

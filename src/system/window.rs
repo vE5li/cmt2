@@ -4,6 +4,7 @@ use seamonkey::*;
 use input::*;
 use interface::{ Interface, InterfaceTheme, InterfaceContext };
 use system::{ ResourceManager, LanguageManager };
+use elements::TextbufferContext;
 use input::Action;
 
 pub struct PoetWindow<'w> {
@@ -44,12 +45,12 @@ impl<'w> PoetWindow<'w> {
         });
     }
 
-    pub fn handle_input(&mut self, interface_context: &InterfaceContext, theme: &InterfaceTheme, resource_manager: &mut ResourceManager, language_manager: &mut LanguageManager, theme_name: &mut SharedString) -> Vec<Action> {
+    pub fn handle_input(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &InterfaceTheme, resource_manager: &mut ResourceManager, language_manager: &mut LanguageManager, theme_name: &mut SharedString) -> Vec<Action> {
         let mut action_queue = Vec::new();
         let mut force_rerender = false;
         let mut handled = false;
 
-        if self.interface.history_catch_up(interface_context, resource_manager) {
+        if self.interface.history_catch_up(textbuffer_context, resource_manager) {
             force_rerender = true;
         }
 
@@ -64,14 +65,14 @@ impl<'w> PoetWindow<'w> {
                         let key_event = KeyEvent::new(code, modifiers);
 
                         for action in interface_context.get_matching_actions(&key_event) {
-                            if let Some(unhandled_action) = self.interface.handle_action(interface_context, resource_manager, language_manager, action, theme_name) {
+                            if let Some(unhandled_action) = self.interface.handle_action(interface_context, textbuffer_context, resource_manager, language_manager, action, theme_name) {
                                 if unhandled_action.is_global() {
                                     action_queue.push(unhandled_action);
                                     handled = true;
                                     continue 'handle;
                                 }
                             } else {
-                                self.rerender(interface_context, theme, resource_manager);
+                                self.rerender(interface_context, textbuffer_context, theme, resource_manager);
                                 handled = true;
                                 continue 'handle;
                             }
@@ -85,18 +86,20 @@ impl<'w> PoetWindow<'w> {
                         continue 'handle;
                     }
 
-                    let character = match unicode {
-                        '\r' => Character::from_char('\n'),
-                        char => Character::from_char(char),
+                    let character = match unicode as usize {
+                        13 => Character::from_char('\n'),
+                        0...31 => continue 'handle,
+                        32...126 => Character::from_char(unicode),
+                        _other => continue 'handle,
                     };
 
-                    self.interface.add_character(interface_context, resource_manager, language_manager, character);
+                    self.interface.add_character(textbuffer_context, resource_manager, language_manager, character);
                     force_rerender = true;
                 },
 
                 Event::Resized { width, height } => {
                     let size = Vector2f::new(width as f32, height as f32);
-                    self.resize(interface_context, theme, size);
+                    self.resize(interface_context, textbuffer_context, theme, size);
                     force_rerender = true;
                 },
 
@@ -112,18 +115,18 @@ impl<'w> PoetWindow<'w> {
 
                 Event::MouseWheelScrolled { delta, .. } => {
                     match delta > 0.0 {
-                        true => self.interface.scroll_up(),
-                        false => self.interface.scroll_down(),
+                        true => self.interface.scroll_up(textbuffer_context),
+                        false => self.interface.scroll_down(textbuffer_context),
                     }
                     force_rerender = true;
                 },
 
-                ignored => {},
+                _ignored => {},
             }
         }
 
         if force_rerender {
-            self.rerender(interface_context, theme, resource_manager);
+            self.rerender(interface_context, textbuffer_context, theme, resource_manager);
         }
 
         return action_queue;
@@ -142,21 +145,21 @@ impl<'w> PoetWindow<'w> {
         self.surface.set_texture(unsafe { &*texture_pointer }, false);
     }
 
-    pub fn update_layout(&mut self, interface_context: &InterfaceContext, theme: &InterfaceTheme) {
-        self.interface.update_layout(interface_context, theme);
+    pub fn update_layout(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &InterfaceTheme) {
+        self.interface.update_layout(interface_context, textbuffer_context, theme);
     }
 
-    pub fn resize(&mut self, interface_context: &InterfaceContext, theme: &InterfaceTheme, size: Vector2f) {
+    pub fn resize(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &InterfaceTheme, size: Vector2f) {
         self.interface.resize(interface_context, size);
         self.size = size;
 
         self.reallocate(interface_context);
-        self.update_layout(interface_context, theme);
+        self.update_layout(interface_context, textbuffer_context, theme);
     }
 
-    pub fn rerender(&mut self, interface_context: &InterfaceContext, theme: &InterfaceTheme, resource_manager: &ResourceManager) {
+    pub fn rerender(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &InterfaceTheme, resource_manager: &ResourceManager) {
         self.framebuffer.clear(Color::BLACK);
-        self.interface.render(&mut self.framebuffer, interface_context, theme, resource_manager, self.focused);
+        self.interface.render(&mut self.framebuffer, interface_context, textbuffer_context, theme, resource_manager, self.focused);
         self.framebuffer.display();
     }
 

@@ -22,8 +22,8 @@ impl TextbufferContext {
             line_numbers: true,
             tab_width: 4,
             scroll_size: 8,
-            append_lines: false, // ?
-            status_bar: false,
+            append_lines: false,
+            status_bar: true,
             highlighting: true,
             selection_lines: true,
             preserve_lines: true,
@@ -39,7 +39,7 @@ impl TextbufferContext {
             line_numbers: false,
             tab_width: 4,
             scroll_size: 0,
-            append_lines: false, // ?
+            append_lines: false,
             status_bar: false,
             highlighting: true,
             selection_lines: false,

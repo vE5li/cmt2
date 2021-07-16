@@ -1,7 +1,7 @@
 use seamonkey::*;
 
 use system::{ BufferAction, LanguageManager, History };
-use elements::{ SelectionMode, Token };
+use elements::{ SelectionMode, Word, TextbufferTheme, TextTheme };
 
 pub fn length_from_position(position: Vec<Position>) -> usize {
     return position.iter().map(|position| position.length).sum();
@@ -12,43 +12,59 @@ pub struct Filebuffer {
     text: SharedString,
     history: History,
     history_index: usize,
-    pub tokens: Vec<Token>,
+    words: Vec<Word>,
     language: SharedString,
+    notes: Vec<Note>,
 }
 
 impl Filebuffer {
 
     pub fn new(language_manager: &mut LanguageManager, language: SharedString, text: SharedString) -> Self {
-        let tokens = display!(Self::tokenize(language_manager, &language, &text));
+        let (words, notes) = display!(Self::tokenize(language_manager, &language, &text));
 
         return Self {
             text: text,
             history: History::new(),
             history_index: 0,
-            tokens: tokens,
+            words: words,
             language: language,
+            notes: notes,
         }
     }
 
-    fn tokenize(language_manager: &mut LanguageManager, language: &SharedString, text: &SharedString) -> Status<Vec<Token>> {
+    fn tokenize(language_manager: &mut LanguageManager, language: &SharedString, text: &SharedString) -> Status<(Vec<Word>, Vec<Note>)> {
 
         let tokenizer = confirm!(language_manager.get_load(language));
-        let (mut token_stream, registry, notes) = display!(tokenizer.tokenize(text.clone(), None, true));
-        let mut tokens = Vec::new();
-        let mut offset = 0;
+        let (token_stream, _registry, notes) = display!(tokenizer.tokenize(text.clone(), None, true));
+        let mut words = Vec::new();
 
         for token in token_stream.into_iter() {
+            let index = token.position[0].index;
             let length = length_from_position(token.position);
-            tokens.push(Token::new(token.token_type, offset, length));
-            offset += length;
+            words.push(Word::new(token.token_type, index, length));
         }
 
-        return success!(tokens);
+        return success!((words, notes));
     }
 
     pub fn retokenize(&mut self, language_manager: &mut LanguageManager) -> Status<()> {
-        self.tokens = confirm!(Self::tokenize(language_manager, &self.language, &self.text));
+        let (words, notes) = confirm!(Self::tokenize(language_manager, &self.language, &self.text));
+        self.words = words;
+        self.notes = notes;
         return success!(());
+    }
+
+    pub fn get_notes(&self) -> Vec<Note> {
+        return self.notes.clone();
+    }
+
+    pub fn get_note_index(&self, item: SharedString) -> usize {
+        for note in &self.notes {
+            if item == format_shared!("{}: {}", note.kind.serialize(), note.message) {
+                return note.position.index;
+            }
+        }
+        panic!();
     }
 
     pub fn set_language(&mut self, language_manager: &mut LanguageManager, language: SharedString) -> Status<()> {
@@ -60,13 +76,60 @@ impl Filebuffer {
         return self.retokenize(language_manager);
     }
 
-    pub fn get_token_from_index(&self, index: usize) -> Token {
-        for token in &self.tokens {
-            if token.index + token.length > index {
-                return token.clone();
+    pub fn first_word(&self) -> Word {
+        return self.words[0].clone();
+    }
+
+    pub fn last_word(&self) -> Word {
+        return self.words.last().unwrap().clone();
+    }
+
+    pub fn word_last_index(&self, word_index: usize) -> usize {
+        return self.words[word_index].index + self.words[word_index].length;
+    }
+
+    pub fn word_theme<'t>(&self, theme: &'t TextbufferTheme, word_index: usize) -> &'t TextTheme {
+        return self.words[word_index].get_theme(theme);
+    }
+
+    pub fn left_word(&self, index: usize) -> Word {
+        for word_index in 0..self.words.len() {
+            if self.words[word_index].index + self.words[word_index].length > index {
+                match word_index == 0 {
+                    true => return self.first_word(),
+                    false => return self.words[word_index - 1].clone(),
+                }
             }
         }
-        panic!("index from token failed");
+        panic!("left word from index failed; index {}; length {}", index, self.text.len());
+    }
+
+    pub fn right_word(&self, index: usize) -> Word {
+        for word_index in 0..self.words.len() {
+            if self.words[word_index].index + self.words[word_index].length > index {
+                match word_index == self.last_word_index() {
+                    true => return self.last_word(),
+                    false => return self.words[word_index + 1].clone(),
+                }
+            }
+        }
+        panic!("right word from index failed; index {}; length {}", index, self.text.len());
+    }
+
+    pub fn word_from_index(&self, index: usize) -> Word {
+        for word in &self.words {
+            if word.index + word.length > index {
+                return word.clone();
+            }
+        }
+        panic!("word from index failed; index {}; length {}", index, self.text.len());
+    }
+
+    fn last_word_index(&self) -> usize {
+        match self.words.is_empty() {
+            true => return 0,
+            false => return self.words.len() - 1,
+        }
     }
 
     fn insert_text_raw(&mut self, index: usize, text: &SharedString) {

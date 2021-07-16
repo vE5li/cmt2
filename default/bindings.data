@@ -7,7 +7,7 @@
     selection_lines [ [ alt 'l' ] ]
 
     character_mode  [ [ control 'd' ] ]
-    token_mode      [ [ control 'f' ] ]
+    word_mode       [ [ control 'f' ] ]
     line_mode       [ [ control 'e' ] ]
     open_file       [ [ control 'o' ] ]
     set_language    [ [ control 'l' ] ]

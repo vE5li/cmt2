@@ -1,4 +1,4 @@
-mod token;
+mod word;
 mod selection;
 mod context;
 mod theme;
@@ -18,9 +18,9 @@ use dialogues::*;
 use input::Action;
 use system::{ Filebuffer, BufferAction, LanguageManager };
 
-pub use self::token::Token;
+pub use self::word::Word;
 
-pub use self::theme::TextbufferTheme;
+pub use self::theme::*;
 pub use self::context::TextbufferContext;
 pub use self::selection::*;
 
@@ -240,6 +240,34 @@ impl Textbuffer {
         }
     }
 
+    fn lower_word(&mut self, filebuffer: &mut Filebuffer, index: usize) -> Word {
+        let primary_index = self.selections[index].primary_index;
+
+        for current_index in primary_index..filebuffer.last_buffer_index() {
+            if filebuffer.character(current_index).is_newline() {
+                let line_length = self.line_length_from_index(filebuffer, current_index + 1);
+                let distance_to_offset = min(line_length, self.selections[index].offset + 1);
+                return filebuffer.word_from_index(current_index + distance_to_offset);
+            }
+        }
+
+        return filebuffer.last_word();
+    }
+
+    fn higher_word(&mut self, filebuffer: &mut Filebuffer, index: usize) -> Word {
+        let primary_index = self.selections[index].primary_index;
+
+        for current_index in (0..primary_index).rev() {
+            if filebuffer.character(current_index).is_newline() {
+                let line_length = self.reverse_line_length_from_index(filebuffer, current_index) - 1;
+                let distance_to_offset = line_length - min(line_length, self.selections[index].offset);
+                return filebuffer.word_from_index(current_index - distance_to_offset);
+            }
+        }
+
+        return filebuffer.first_word();
+    }
+
     fn move_selection_to_end(&mut self, filebuffer: &mut Filebuffer, index: usize) {
         let primary_index = self.selections[index].primary_index;
         let distance_to_newline = self.line_length_from_index(filebuffer, primary_index);
@@ -270,29 +298,29 @@ impl Textbuffer {
 
     fn move_selection_to_end_of_word(&mut self, filebuffer: &mut Filebuffer, index: usize) {
         let primary_index = self.selections[index].primary_index;
-        let token = filebuffer.get_token_from_index(primary_index);
-        let new_primary = token.index + token.length - 1;
+        let word = filebuffer.word_from_index(primary_index);
+        let new_primary = word.index + word.length - 1;
         self.set_primary_index(filebuffer, index, new_primary);
     }
 
     fn move_selection_to_start_of_word(&mut self, filebuffer: &mut Filebuffer, index: usize) {
         let primary_index = self.selections[index].primary_index;
-        let token = filebuffer.get_token_from_index(primary_index);
-        let new_primary = token.index;
+        let word = filebuffer.word_from_index(primary_index);
+        let new_primary = word.index;
         self.set_primary_index(filebuffer, index, new_primary);
     }
 
     fn move_secondary_to_end_of_word(&mut self, filebuffer: &mut Filebuffer, index: usize) {
         let secondary_index = self.selections[index].secondary_index;
-        let token = filebuffer.get_token_from_index(secondary_index);
-        let new_secondary = token.index + token.length - 1;
+        let word = filebuffer.word_from_index(secondary_index);
+        let new_secondary = word.index + word.length - 1;
         self.set_secondary_index(filebuffer, index, new_secondary);
     }
 
     fn move_secondary_to_start_of_word(&mut self, filebuffer: &mut Filebuffer, index: usize) {
         let secondary_index = self.selections[index].secondary_index;
-        let token = filebuffer.get_token_from_index(secondary_index);
-        let new_secondary = token.index;
+        let word = filebuffer.word_from_index(secondary_index);
+        let new_secondary = word.index;
         self.set_secondary_index(filebuffer, index, new_secondary);
     }
 
@@ -308,6 +336,10 @@ impl Textbuffer {
         self.set_primary_index(filebuffer, index, self.selection_smallest_index(index));
     }
 
+    fn move_secondary_to_first(&mut self, filebuffer: &mut Filebuffer, index: usize) {
+        self.set_secondary_index(filebuffer, index, self.selection_smallest_index(index));
+    }
+
     fn move_selection_to_last(&mut self, filebuffer: &mut Filebuffer, index: usize) {
         self.set_primary_index(filebuffer, index, self.selection_biggest_index(index));
     }
@@ -320,13 +352,66 @@ impl Textbuffer {
         return self.selections[index].primary_index < self.selections[index].secondary_index;
     }
 
-    fn update_offset(&mut self, filebuffer: &mut Filebuffer, index: usize) {
+    fn set_offset(&mut self, filebuffer: &mut Filebuffer, index: usize, offset_index: usize) {
         let previous = self.selections[index].offset;
-        let new_offset = self.offset_from_index(filebuffer, self.selections[index].primary_index);
+        let new_offset = self.offset_from_index(filebuffer, offset_index);
         if previous != new_offset {
             self.selections[index].offset = new_offset;
             filebuffer.change_offset(self.window_id, index, previous, new_offset, true);
         }
+    }
+
+    fn update_offset(&mut self, filebuffer: &mut Filebuffer, index: usize) {
+        self.set_offset(filebuffer, index, self.selections[index].primary_index);
+    }
+
+    fn update_offset_smallest(&mut self, filebuffer: &mut Filebuffer, index: usize) {
+        self.set_offset(filebuffer, index, self.selection_smallest_index(index));
+    }
+
+    fn is_selection_edge(&mut self, filebuffer: &mut Filebuffer, index: usize) -> bool {
+        let smallest_index = self.selection_smallest_index(index);
+        let biggest_index = self.selection_biggest_index(index);
+        return smallest_index == 0 || biggest_index == filebuffer.last_buffer_index();
+    }
+
+    fn select_word(&mut self, filebuffer: &mut Filebuffer, index: usize, word: Word) {
+        self.set_secondary_index(filebuffer, index, word.index);
+        self.set_primary_index(filebuffer, index, word.index + word.length - 1);
+    }
+
+    fn select_to_word(&mut self, filebuffer: &mut Filebuffer, index: usize, word: Word) {
+        self.set_primary_index(filebuffer, index, word.index);
+
+        if self.is_selection_inverted(index) {
+            self.move_secondary_to_end_of_word(filebuffer, index);
+            self.move_selection_to_start_of_word(filebuffer, index);
+        } else {
+            self.move_secondary_to_start_of_word(filebuffer, index);
+            self.move_selection_to_end_of_word(filebuffer, index);
+        }
+    }
+
+    fn left_word(&self, filebuffer: &mut Filebuffer, index: usize) -> Word {
+        return filebuffer.left_word(self.selections[index].primary_index);
+    }
+
+    fn right_word(&self, filebuffer: &mut Filebuffer, index: usize) -> Word {
+        return filebuffer.right_word(self.selections[index].primary_index);
+    }
+
+    fn first_selected_word(&self, filebuffer: &Filebuffer, index: usize) -> Word {
+        let first_index = self.selection_smallest_index(index);
+        return filebuffer.word_from_index(first_index);
+    }
+
+    fn last_selected_word(&self, filebuffer: &Filebuffer, index: usize) -> Word {
+        let last_index = self.selection_biggest_index(index);
+        return filebuffer.word_from_index(last_index);
+    }
+
+    fn is_selection_multiword(&self, filebuffer: &Filebuffer, index: usize) -> bool {
+        return self.first_selected_word(filebuffer, index).index != self.last_selected_word(filebuffer, index).index;
     }
 
     fn reset_selection(&mut self, filebuffer: &mut Filebuffer, index: usize) {
@@ -495,7 +580,14 @@ impl Textbuffer {
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
+                for index in self.selection_start()..self.selections.len() {
+                    let word = self.right_word(filebuffer, index);
+                    self.delete_selected(filebuffer, index);
+                    self.move_secondary_to_first(filebuffer, index);
+                    self.set_selection_length(filebuffer, index, word.length);
+                    self.update_offset_smallest(filebuffer, index);
+                }
             },
 
             SelectionMode::Line => {
@@ -525,7 +617,14 @@ impl Textbuffer {
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
+                for index in self.selection_start()..self.selections.len() {
+                    let word = self.right_word(filebuffer, index);
+                    self.delete_selected(filebuffer, index);
+                    self.move_secondary_to_first(filebuffer, index);
+                    self.set_selection_length(filebuffer, index, word.length);
+                    self.update_offset_smallest(filebuffer, index);
+                }
             },
 
             SelectionMode::Line => {
@@ -559,7 +658,22 @@ impl Textbuffer {
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
+                for index in self.selection_start()..self.selections.len() {
+                    if self.is_selection_inverted(index) {
+                        self.move_secondary_to_end(filebuffer, index);
+                        self.move_selection_to_start(textbuffer_context, filebuffer, true, index);
+                    } else {
+                        self.move_secondary_to_start(textbuffer_context, filebuffer, true, index);
+                        self.move_selection_to_end(filebuffer, index);
+                    }
+
+                    let word = self.right_word(filebuffer, index);
+                    self.delete_selected(filebuffer, index);
+                    self.move_secondary_to_first(filebuffer, index);
+                    self.set_selection_length(filebuffer, index, word.length);
+                    self.update_offset_smallest(filebuffer, index);
+                }
             },
 
             SelectionMode::Line => {
@@ -590,7 +704,15 @@ impl Textbuffer {
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
+                for index in self.selection_start()..self.selections.len() {
+                    let word = match self.is_selection_multiword(filebuffer, index) {
+                        true => self.first_selected_word(filebuffer, index),
+                        false => self.left_word(filebuffer, index),
+                    };
+                    self.select_word(filebuffer, index, word);
+                    self.update_offset_smallest(filebuffer, index);
+                }
             },
 
             SelectionMode::Line => return,
@@ -614,7 +736,15 @@ impl Textbuffer {
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
+                for index in self.selection_start()..self.selections.len() {
+                    let word = match self.is_selection_multiword(filebuffer, index) {
+                        true => self.last_selected_word(filebuffer, index),
+                        false => self.right_word(filebuffer, index),
+                    };
+                    self.select_word(filebuffer, index, word);
+                    self.update_offset_smallest(filebuffer, index);
+                }
             },
 
             SelectionMode::Line => return,
@@ -634,10 +764,25 @@ impl Textbuffer {
                         false => self.move_selection_up(filebuffer, index),
                     }
                     self.reset_selection(filebuffer, index);
+
+                    if self.is_selection_edge(filebuffer, index) {
+                        self.update_offset(filebuffer, index);
+                    }
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
+                for index in self.selection_start()..self.selections.len() {
+                    let word = match self.is_selection_multiword(filebuffer, index) {
+                        true => self.first_selected_word(filebuffer, index),
+                        false => self.higher_word(filebuffer, index),
+                    };
+                    self.select_word(filebuffer, index, word);
+
+                    if self.is_selection_edge(filebuffer, index) {
+                        self.update_offset_smallest(filebuffer, index);
+                    }
+                }
             },
 
             SelectionMode::Line => {
@@ -667,11 +812,26 @@ impl Textbuffer {
                         true => self.move_selection_to_last(filebuffer, index),
                         false => self.move_selection_down(filebuffer, index),
                     }
+
                     self.reset_selection(filebuffer, index);
+                    if self.is_selection_edge(filebuffer, index) {
+                        self.update_offset(filebuffer, index);
+                    }
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
+                for index in self.selection_start()..self.selections.len() {
+                    let word = match self.is_selection_multiword(filebuffer, index) {
+                        true => self.last_selected_word(filebuffer, index),
+                        false => self.lower_word(filebuffer, index),
+                    };
+
+                    self.select_word(filebuffer, index, word);
+                    if self.is_selection_edge(filebuffer, index) {
+                        self.update_offset_smallest(filebuffer, index);
+                    }
+                }
             },
 
             SelectionMode::Line => {
@@ -702,7 +862,12 @@ impl Textbuffer {
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
+                for index in self.selection_start()..self.selections.len() {
+                    let word = self.left_word(filebuffer, index);
+                    self.select_to_word(filebuffer, index, word);
+                    self.update_offset_smallest(filebuffer, index);
+                }
             },
 
             SelectionMode::Line => return,
@@ -722,7 +887,12 @@ impl Textbuffer {
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
+                for index in self.selection_start()..self.selections.len() {
+                    let word = self.right_word(filebuffer, index);
+                    self.select_to_word(filebuffer, index, word);
+                    self.update_offset_smallest(filebuffer, index);
+                }
             },
 
             SelectionMode::Line => return,
@@ -738,10 +908,22 @@ impl Textbuffer {
             SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
                     self.move_selection_up(filebuffer, index);
+
+                    if self.is_selection_edge(filebuffer, index) {
+                        self.update_offset(filebuffer, index);
+                    }
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
+                for index in self.selection_start()..self.selections.len() {
+                    let word = self.higher_word(filebuffer, index);
+                    self.select_to_word(filebuffer, index, word);
+
+                    if self.is_selection_edge(filebuffer, index) {
+                        self.update_offset_smallest(filebuffer, index);
+                    }
+                }
             },
 
             SelectionMode::Line => {
@@ -771,10 +953,22 @@ impl Textbuffer {
             SelectionMode::Character => {
                 for index in self.selection_start()..self.selections.len() {
                     self.move_selection_down(filebuffer, index);
+
+                    if self.is_selection_edge(filebuffer, index) {
+                        self.update_offset(filebuffer, index);
+                    }
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
+                for index in self.selection_start()..self.selections.len() {
+                    let word = self.lower_word(filebuffer, index);
+                    self.select_to_word(filebuffer, index, word);
+
+                    if self.is_selection_edge(filebuffer, index) {
+                        self.update_offset_smallest(filebuffer, index);
+                    }
+                }
             },
 
             SelectionMode::Line => {
@@ -809,7 +1003,7 @@ impl Textbuffer {
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
 
             },
 
@@ -830,7 +1024,7 @@ impl Textbuffer {
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
 
             },
 
@@ -850,7 +1044,7 @@ impl Textbuffer {
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
 
             },
 
@@ -871,7 +1065,7 @@ impl Textbuffer {
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
 
             },
 
@@ -963,24 +1157,6 @@ impl Textbuffer {
         return length;
     }
 
-    fn token_from_index(&self, filebuffer: &mut Filebuffer, index: usize) -> usize {
-        for token_index in (0..filebuffer.tokens.len()).rev() {
-            if filebuffer.tokens[token_index].index == index {
-                return token_index;
-            }
-
-            if filebuffer.tokens[token_index].index < index {
-                return token_index;
-            }
-        }
-
-        panic!("index {} was out of bounds", index);
-    }
-
-    fn is_single_word_selected(&self) -> bool {
-        return self.selections.len() == 1 || self.adding_selection && !self.mode.is_line();
-    }
-
     fn is_selection_multiline(&self, filebuffer: &Filebuffer, index: usize) -> bool {
         for current_index in self.selection_smallest_index(index)..self.selection_biggest_index(index) {
             if filebuffer.character(current_index).is_newline() {
@@ -996,9 +1172,9 @@ impl Textbuffer {
         }
     }
 
-    fn token_mode(&mut self, textbuffer_context: &TextbufferContext, filebuffer: &mut Filebuffer) {
-        if !self.mode.is_token() {
-            self.set_selection_mode(filebuffer, SelectionMode::Token);
+    fn word_mode(&mut self, filebuffer: &mut Filebuffer) {
+        if !self.mode.is_word() {
+            self.set_selection_mode(filebuffer, SelectionMode::Word);
 
             for index in 0..self.selections.len() {
                 if self.is_selection_inverted(index) {
@@ -1043,7 +1219,7 @@ impl Textbuffer {
                 self.adding_selection = true;
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
             },
 
             SelectionMode::Line => {
@@ -1107,7 +1283,7 @@ impl Textbuffer {
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
             },
 
             SelectionMode::Line => {
@@ -1129,7 +1305,7 @@ impl Textbuffer {
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
             },
 
             SelectionMode::Line => {
@@ -1151,7 +1327,7 @@ impl Textbuffer {
                 }
             },
 
-            SelectionMode::Token => {
+            SelectionMode::Word => {
             },
 
             SelectionMode::Line => {
@@ -1163,18 +1339,18 @@ impl Textbuffer {
 
     fn do_buffer_action(&mut self, action: BufferAction) {
         match action {
-            BufferAction::AddSelection(window_id, index, primary_index, secondary_index, offset) => {
+            BufferAction::AddSelection(_window_id, index, primary_index, secondary_index, offset) => {
                 let selection = Selection::new(primary_index, secondary_index, offset);
                 match index == self.selections.len() {
                     true => self.selections.push(selection),
                     false => self.selections.insert(index, selection),
                 }
             },
-            BufferAction::RemoveSelection(window_id, index, ..) => { self.selections.remove(index); },
-            BufferAction::ChangePrimaryIndex(window_id, index, _previous, new) => self.selections[index].primary_index = new,
-            BufferAction::ChangeSecondaryIndex(window_id, index, _previous, new) => self.selections[index].secondary_index = new,
-            BufferAction::ChangeOffset(window_id, index, _previous, new) => self.selections[index].offset = new,
-            BufferAction::ChangeSelectionMode(window_id, _previous, new) => self.mode = new,
+            BufferAction::RemoveSelection(_window_id, index, ..) => { self.selections.remove(index); },
+            BufferAction::ChangePrimaryIndex(_window_id, index, _previous, new) => self.selections[index].primary_index = new,
+            BufferAction::ChangeSecondaryIndex(_window_id, index, _previous, new) => self.selections[index].secondary_index = new,
+            BufferAction::ChangeOffset(_window_id, index, _previous, new) => self.selections[index].offset = new,
+            BufferAction::ChangeSelectionMode(_window_id, _previous, new) => self.mode = new,
             invalid => panic!("buffer action {:?} may not be executed", invalid),
         }
     }
@@ -1213,7 +1389,7 @@ impl Textbuffer {
         }
     }
 
-    pub fn history_catch_up(&mut self, filebuffer: &mut Filebuffer) -> bool {
+    pub fn history_catch_up(&mut self, textbuffer_context: &TextbufferContext, filebuffer: &mut Filebuffer) -> bool {
         let history_index = filebuffer.get_history_index();
         let force_rerender = self.history_index != history_index;
 
@@ -1239,19 +1415,23 @@ impl Textbuffer {
             }
         }
 
+        if force_rerender {
+            self.check_selection_gaps(textbuffer_context, filebuffer);
+        }
+
         return force_rerender;
     }
 
     fn undo(&mut self, textbuffer_context: &TextbufferContext, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer) {
         filebuffer.undo(language_manager, self.window_id);
-        if self.history_catch_up(filebuffer) {
+        if self.history_catch_up(textbuffer_context, filebuffer) {
             self.check_selection_gaps(textbuffer_context, filebuffer);
         }
     }
 
     fn redo(&mut self, textbuffer_context: &TextbufferContext, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer) {
         filebuffer.redo(language_manager, self.window_id);
-        if self.history_catch_up(filebuffer) {
+        if self.history_catch_up(textbuffer_context, filebuffer) {
             self.check_selection_gaps(textbuffer_context, filebuffer);
         }
     }
@@ -1262,9 +1442,23 @@ impl Textbuffer {
         }
 
         self.adding_selection = false;
+        self.character_mode(filebuffer);
         self.move_selection_to_end(filebuffer, 0);
         self.update_offset(filebuffer, 0);
         self.reset_selection(filebuffer, 0);
+    }
+
+    pub fn jump_to_index(&mut self, textbuffer_context: &TextbufferContext, filebuffer: &mut Filebuffer, jump_index: usize) {
+        for _index in 0..self.selections.len() - 1 {
+            self.remove_selection(filebuffer, 1);
+        }
+
+        self.adding_selection = false;
+        self.character_mode(filebuffer);
+        self.set_primary_index(filebuffer, 0, jump_index);
+        self.update_offset(filebuffer, 0);
+        self.reset_selection(filebuffer, 0);
+        self.check_selection_gaps(textbuffer_context, filebuffer);
     }
 
     pub fn handle_action(&mut self, textbuffer_context: &TextbufferContext, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer, action: Action) -> Option<Action> {
@@ -1272,7 +1466,7 @@ impl Textbuffer {
 
             Action::CharacterMode => handle_return!(self.character_mode(filebuffer)),
 
-            Action::TokenMode => handle_return!(self.token_mode(textbuffer_context, filebuffer)),
+            Action::WordMode => handle_return!(self.word_mode(filebuffer)),
 
             Action::LineMode => handle_return!(self.line_mode(textbuffer_context, filebuffer)),
 
@@ -1398,24 +1592,6 @@ impl Textbuffer {
             true => self.unadvance_selections(filebuffer, index, current_length - new_length),
             false => self.advance_selections(filebuffer, index, new_length - current_length),
         }
-
-        /*let mut offset = 0;
-        while offset < current_length && offset < new_length {
-            self.text[current_index] = new_text[offset];
-            current_index += 1;
-            offset += 1;
-        }
-
-        if current_length > new_length {
-            self.remove_text_with_length(filebuffer, current_index, current_length - offset);
-            self.unadvance_selections(index, current_length - new_length);
-        } else if current_length < new_length {
-            for offset in offset..new_length {
-                self.text.insert(current_index, new_text[offset]);
-                current_index += 1;
-            }
-            self.advance_selections(index, new_length - current_length);
-        }*/
     }
 
     fn rotate_selections(&mut self, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer) {
@@ -1490,27 +1666,27 @@ impl Textbuffer {
             }
         }
 
+        if character.is_newline() {
+            self.check_selection_gaps(textbuffer_context, filebuffer);
+        }
+
         self.adding_selection = false;
         self.character_mode(filebuffer);
         filebuffer.retokenize(language_manager);
     }
 
-
     fn render_text(&self, framebuffer: &mut RenderTexture, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &TextbufferTheme, filebuffer: &Filebuffer) {
 
         let character_scaling = interface_context.character_spacing * interface_context.font_size as f32;
         let line_scaling = interface_context.line_spacing * interface_context.font_size as f32;
-        let line_padding = (line_scaling - interface_context.font_size as f32) / 2.0 - (interface_context.font_size as f32 / 7.0);
-        let line_number_width = theme.line_number_width as f32 * character_scaling;
         let line_number_offset = match textbuffer_context.line_numbers {
             true => theme.line_number_width as f32 * character_scaling + theme.line_number_offset * interface_context.font_size as f32,
             false => 0.0,
         };
 
-        let mut token_index = 0;
-        let mut render_newline = true;
+        let mut word_index = 0;
         let mut line_number = self.vertical_scroll;
-        let mut index = self.index_from_line(filebuffer, self.vertical_scroll);
+        let index = self.index_from_line(filebuffer, self.vertical_scroll);
         let mut top_offset = theme.offset.y * interface_context.font_size as f32;
         let mut left_offset = line_number_offset + theme.offset.x * interface_context.font_size as f32;
 
@@ -1519,7 +1695,7 @@ impl Textbuffer {
         let character_size = Vector2f::new(character_scaling, line_scaling);
 
         let mut text_theme = match textbuffer_context.highlighting {
-            true => filebuffer.tokens[token_index].get_theme(&theme),
+            true => filebuffer.word_theme(&theme, word_index),
             false => &theme.text_theme,
         };
 
@@ -1534,10 +1710,10 @@ impl Textbuffer {
                 break;
             }
 
-            while index >= filebuffer.tokens[token_index].index + filebuffer.tokens[token_index].length {
-                token_index += 1;
+            while index >= filebuffer.word_last_index(word_index) {
+                word_index += 1;
                 if textbuffer_context.highlighting {
-                    text_theme = filebuffer.tokens[token_index].get_theme(&theme);
+                    text_theme = filebuffer.word_theme(&theme, word_index);
                 }
             }
 
@@ -1571,7 +1747,7 @@ impl Textbuffer {
             true => theme.line_number_width as f32 * character_scaling + theme.line_number_offset * interface_context.font_size as f32,
             false => 0.0,
         };
-        let mut left_offset = line_number_offset + theme.offset.x * interface_context.font_size as f32;
+        let left_offset = line_number_offset + theme.offset.x * interface_context.font_size as f32;
         let line_size = Vector2f::new(self.size.x, line_scaling);
 
         for index in 0..self.selections.len() {
@@ -1657,40 +1833,37 @@ impl Textbuffer {
         }
     }
 
-    fn render_status_bar(&self, framebuffer: &mut RenderTexture, interface_context: &InterfaceContext, theme: &TextfieldTheme, filebuffer: &Filebuffer) {
+    fn render_status_bar(&self, framebuffer: &mut RenderTexture, interface_context: &InterfaceContext, theme: &StatusBarTheme, filebuffer: &Filebuffer) {
 
-        //let status_bar_height = theme.height * interface_context.font_size as f32;
-        //let size = Vector2f::new(self.size.x, status_bar_height);
-        //let position = Vector2f::new(0.0, self.size.y - status_bar_height);
-        //Textfield::render(framebuffer, interface_context, theme, SharedString::from(""), size, position);
+        //let mut status_bar_pieces = Vec::new();
+        //status_bar_pieces.push(Piece::new(self.mode.name(), &theme.mode_theme));
+        //status_bar_pieces.push(Piece::new(word.display_name(), &theme.word_theme));
+        //StatusBar::render(status_bar_pieces);
 
-        //let mut offset = self.area.offset + self.size.width;
-        //terminal.set_color_pair(&context.theme.panel.background, &context.theme.overlay_color, true);
+        let mut status_bar_content = SharedString::new();
 
-        //offset -= self.mode.name().len() + 3;
-        //terminal.move_cursor(self.size.y - 1, offset);
-        //print!(" {} ", self.mode.name());
+        let primary_index = self.selections[self.selections.len() - 1].primary_index;
+        let line_number = self.line_number_from_index(filebuffer, primary_index) + 1;
+        let character = self.offset_from_index(filebuffer, primary_index) + 1;
+        let length = self.selection_biggest_index(self.selections.len() - 1) - self.selection_smallest_index(self.selections.len() - 1) + 1;
 
-        //offset -= self.language.len() + 3;
-        //terminal.move_cursor(self.size.y - 1, offset);
-        //print!(" {} ", self.language);
+        let word = filebuffer.word_from_index(primary_index);
 
-        //if self.is_single_word_selected() {
-        //    let token_index = self.token_from_index(self.selections[self.selections.len() - 1].index);
-        //    if let Some(display_name) = filebuffer.tokens[token_index].display_name() {
-        //        offset -= display_name.len() + 3;
-        //        terminal.move_cursor(self.size.y - 1, offset);
-        //        print!(" {} ", display_name);
-        //    }
+        if let Some(display_name) = word.display_name() {
+            status_bar_content.push_str(&format_shared!("{}   ", display_name));
+        }
 
-        //    if let TokenType::Invalid(error) = &filebuffer.tokens[token_index].token_type {
-        //        let error_string = format!("{:?}", error); // TEMP
-        //        offset -= error_string.len() + 3;
-        //        terminal.set_color_pair(&context.theme.panel.background, &context.theme.error_color, true);
-        //        terminal.move_cursor(self.size.y - 1, offset);
-        //        print!(" {} ", error_string);
-        //    }
-        //}
+        if let TokenType::Invalid(error) = word.token_type {
+            status_bar_content.push_str(&format_shared!("{}   ", error.display(&None, &map!())));
+        }
+
+        status_bar_content.push_str(&format_shared!("{}:{}:{}   ", line_number, character, length));
+        status_bar_content.push_str(&format_shared!("{}", self.mode.name()));
+
+        let status_bar_height = theme.height * interface_context.font_size as f32;
+        let size = Vector2f::new(self.size.x, status_bar_height);
+        let position = Vector2f::new(0.0, self.size.y - status_bar_height);
+        Textfield::render(framebuffer, interface_context, &theme.textfield_theme, &status_bar_content, size, position, interface_context.font_size as f32);
     }
 
     pub fn render(&self, framebuffer: &mut RenderTexture, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &TextbufferTheme, filebuffer: &Filebuffer, scaler: f32, focused: bool) {
@@ -1709,7 +1882,7 @@ impl Textbuffer {
             self.render_selections(framebuffer, interface_context, textbuffer_context, theme, filebuffer);
         }
 
-        if textbuffer_context.status_bar && focused {
+        if textbuffer_context.status_bar {
             self.render_status_bar(framebuffer, interface_context, &theme.status_bar_theme, filebuffer);
         }
     }

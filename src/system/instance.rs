@@ -8,6 +8,7 @@ use system::{ PoetWindow, ResourceManager, LanguageManager };
 pub struct Instance<'i> {
     windows: Vec<PoetWindow<'i>>,
     interface_context: InterfaceContext,
+    textbuffer_context: TextbufferContext,
     interface_theme: InterfaceTheme,
     theme_name: SharedString,
 
@@ -30,7 +31,7 @@ impl<'i> Instance<'i> {
 
         let theme_file = format_shared!("/home/.config/poet/themes/{}.data", &theme_name);
         let theme_map = display!(read_map(&theme_file));
-        let mut theme = display!(theme_map.index(&identifier!("interface")));
+        let theme = display!(theme_map.index(&identifier!("interface")));
 
         let interface_context = display!(InterfaceContext::temp());
         let interface_theme = InterfaceTheme::load(theme, &theme_name);
@@ -38,6 +39,7 @@ impl<'i> Instance<'i> {
         Self {
             windows: Vec::new(),
             interface_context: interface_context,
+            textbuffer_context: TextbufferContext::from(),
             interface_theme: interface_theme,
             theme_name: theme_name,
 
@@ -49,7 +51,7 @@ impl<'i> Instance<'i> {
 
     pub fn new_editor(&mut self) -> Status<()> {
         let mut new_window = confirm!(PoetWindow::interface(&self.interface_context, &mut self.resource_manager, &mut self.language_manager, self.window_counter));
-        new_window.rerender(&self.interface_context, &self.interface_theme, &mut self.resource_manager);
+        new_window.rerender(&self.interface_context, &self.textbuffer_context, &self.interface_theme, &mut self.resource_manager);
 
         self.window_counter += 1;
         self.windows.push(new_window);
@@ -67,7 +69,7 @@ impl<'i> Instance<'i> {
         let mut force_update = false;
 
         'handle: while index < self.windows.len() {
-            for action in self.windows[index].handle_input(&self.interface_context, &self.interface_theme, &mut self.resource_manager, &mut self.language_manager, &mut self.theme_name) {
+            for action in self.windows[index].handle_input(&self.interface_context, &self.textbuffer_context, &self.interface_theme, &mut self.resource_manager, &mut self.language_manager, &mut self.theme_name) {
                 match action {
 
                     Action::CloseWindow => {
@@ -79,7 +81,7 @@ impl<'i> Instance<'i> {
                     Action::NewInterface => {
                         if let Status::Error(error) = self.new_editor() {
                             self.windows[index].set_error_state(error);
-                            self.windows[index].rerender(&self.interface_context, &self.interface_theme, &self.resource_manager);
+                            self.windows[index].rerender(&self.interface_context, &self.textbuffer_context, &self.interface_theme, &self.resource_manager);
                         }
                     },
 
@@ -113,28 +115,44 @@ impl<'i> Instance<'i> {
                     },
 
                     Action::ToggleAppendLines => {
-                        panic!("implement");
+                        self.textbuffer_context.toggle_append_lines();
+                        force_rerender = true;
+                    },
+
+                    Action::TogglePreserveLines => {
+                        self.textbuffer_context.toggle_preserve_lines();
+                        force_rerender = true;
+                    },
+
+                    Action::ToggleStartAtSymbol => {
+                        self.textbuffer_context.toggle_start_at_symbol();
+                        force_rerender = true;
                     },
 
                     Action::ToggleStatusBar => {
-                        panic!("implement");
+                        self.textbuffer_context.toggle_status_bar();
+                        force_rerender = true;
                     },
 
                     Action::ToggleLineNumbers => {
-                        panic!("implement");
+                        self.textbuffer_context.toggle_line_numbers();
                         force_update = true;
+                        force_rerender = true;
                     },
 
                     Action::ToggleSelectionLines => {
-                        panic!("implement");
+                        self.textbuffer_context.toggle_selection_lines();
+                        force_rerender = true;
                     },
 
                     Action::ToggleHighlighting => {
-                        panic!("implement");
+                        self.textbuffer_context.toggle_highlighting();
+                        force_rerender = true;
                     },
 
                     Action::ToggleUnfocusedSelections => {
-                        panic!("implement");
+                        self.textbuffer_context.toggle_unfocused_selections();
+                        force_rerender = true;
                     },
 
                     Action::Quit => {
@@ -145,7 +163,7 @@ impl<'i> Instance<'i> {
 
                         let theme_file = format_shared!("/home/.config/poet/themes/{}.data", &self.theme_name);
                         let theme_map = display!(read_map(&theme_file));
-                        let mut theme = display!(theme_map.index(&identifier!("interface")));
+                        let theme = display!(theme_map.index(&identifier!("interface")));
 
                         let interface_context = display!(InterfaceContext::temp());
                         let interface_theme = InterfaceTheme::load(theme, &self.theme_name);
@@ -182,8 +200,9 @@ impl<'i> Instance<'i> {
 
         if force_update {
             let interface_context = &self.interface_context;
+            let textbuffer_context = &self.textbuffer_context;
             let interface_theme = &self.interface_theme;
-            self.windows.iter_mut().for_each(|window| window.update_layout(interface_context, interface_theme));
+            self.windows.iter_mut().for_each(|window| window.update_layout(interface_context, textbuffer_context, interface_theme));
         }
 
         if force_reallocate {
@@ -193,9 +212,10 @@ impl<'i> Instance<'i> {
 
         if force_rerender {
             let interface_context = &self.interface_context;
+            let textbuffer_context = &self.textbuffer_context;
             let interface_theme = &self.interface_theme;
             let resource_manager = &self.resource_manager;
-            self.windows.iter_mut().for_each(|window| window.rerender(interface_context, interface_theme, resource_manager));
+            self.windows.iter_mut().for_each(|window| window.rerender(interface_context, textbuffer_context, interface_theme, resource_manager));
         }
 
         self.windows.iter_mut().for_each(|window| window.display());

@@ -45,23 +45,6 @@ impl TextBox {
         }
     }
 
-    pub fn from(language_manager: &mut LanguageManager, description: &'static str, displacement: usize, text: SharedString) -> Self {
-
-        let last_index = text.len();
-        let language = SharedString::from("dialogue");
-        let textbuffer = Textbuffer::new(0, Vector2f::new(400., 50.), Vector2f::new(0., 0.), ' ', false, false, false);
-        //guaranteed!(textbuffer.set_text(text.clone()));
-
-        Self {
-            description: SharedString::from(description),
-            textbuffer: textbuffer,
-            textbuffer_context: TextbufferContext::textbox(),
-            filebuffer: Filebuffer::new(language_manager, language, text),
-            selection: Selection::new(last_index, last_index, 0),
-            displacement: displacement,
-        }
-    }
-
     pub fn get(&self) -> SharedString {
         let mut padded_text = self.filebuffer.get_text();
         padded_text.pop();

@@ -25,13 +25,16 @@ impl ActionDialogue {
             SharedString::from("line_numbers"),
             SharedString::from("selection_lines"),
             SharedString::from("highlighting"),
+            SharedString::from("preserve_lines"),
+            SharedString::from("start_at_symbol"),
             SharedString::from("unfocused_selections"),
             SharedString::from("character_mode"),
-            SharedString::from("token_mode"),
+            SharedString::from("word_mode"),
             SharedString::from("line_mode"),
             SharedString::from("new_file"),
             SharedString::from("open_file"),
             SharedString::from("loaded_buffers"),
+            SharedString::from("notes"),
             SharedString::from("save_file"),
             SharedString::from("set_language"),
             SharedString::from("set_theme"),
@@ -88,10 +91,6 @@ impl ActionDialogue {
 
     pub fn get(&self) -> SharedString {
         return self.combobox.get();
-    }
-
-    pub fn clear(&mut self, language_manager: &mut LanguageManager) {
-        self.combobox.clear(language_manager);
     }
 
     pub fn handle_action(&mut self, interface_context: &InterfaceContext, language_manager: &mut LanguageManager, action: Action) -> (bool, Option<bool>) {

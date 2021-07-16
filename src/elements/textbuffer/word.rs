@@ -1,16 +1,17 @@
+use seamonkey::*;
+
 use sfml::graphics::{ Color, TextStyle };
-use seamonkey::TokenType;
 
 use elements::{ TextbufferTheme, TextTheme };
 
 #[derive(Clone, Debug)]
-pub struct Token {
+pub struct Word {
     pub token_type: TokenType,
     pub index: usize,
     pub length: usize,
 }
 
-impl Token {
+impl Word {
 
     pub fn new(token_type: TokenType, index: usize, length: usize) -> Self {
         Self {
@@ -20,17 +21,17 @@ impl Token {
         }
     }
 
-    pub fn display_name(&self) -> Option<&'static str> {
+    pub fn display_name(&self) -> Option<SharedString> {
         match self.token_type {
-            TokenType::Comment(..) => return Some("comment"),
-            TokenType::Operator(..) => return Some("operator"),
-            TokenType::Keyword(..) => return Some("keyword"),
-            TokenType::Identifier(..) => return Some("identifier"),
-            TokenType::TypeIdentifier(..) => return Some("type identifier"),
-            TokenType::Character(..) => return Some("character"),
-            TokenType::String(..) => return Some("string"),
-            TokenType::Integer(..) => return Some("integer"),
-            TokenType::Float(..) => return Some("float"),
+            TokenType::Comment(..) => return Some(SharedString::from("comment")),
+            TokenType::Operator(..) => return Some(SharedString::from("operator")),
+            TokenType::Keyword(..) => return Some(SharedString::from("keyword")),
+            TokenType::Identifier(..) => return Some(SharedString::from("identifier")),
+            TokenType::TypeIdentifier(..) => return Some(SharedString::from("type identifier")),
+            TokenType::Character(..) => return Some(SharedString::from("character")),
+            TokenType::String(..) => return Some(SharedString::from("string")),
+            TokenType::Integer(..) => return Some(SharedString::from("integer")),
+            TokenType::Float(..) => return Some(SharedString::from("float")),
             TokenType::Invalid(..) => return None,
             TokenType::Ignored => return None,
         }
