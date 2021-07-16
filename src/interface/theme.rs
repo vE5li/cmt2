@@ -171,6 +171,10 @@ pub fn get_color(theme: &Option<Data>, name: &'static str, default_value: Color)
                     }
 
                     println!("color \"{}\" expected three or four items but got {}", name, vector.len());
+                } else if entry.is_integer() {
+                    let default_brightness = (default_value.red() + default_value.green() + default_value.blue()) / 3;
+                    let brightness = get_u8_from_integer(&entry, name, default_brightness);
+                    return Color::rgba(brightness, brightness, brightness, 255);
                 }
             }
         }
