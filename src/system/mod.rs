@@ -14,3 +14,10 @@ pub use self::filebuffer::Filebuffer;
 pub use self::instance::Instance;
 pub use self::language::LanguageManager;
 pub use self::manager::ResourceManager;
+
+pub fn subtract_or_zero(left: usize, right: usize) -> usize {
+    match left < right {
+        true => return 0,
+        false => return left - right,
+    }
+}

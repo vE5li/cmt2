@@ -102,7 +102,7 @@ impl FileBox {
                 let valid_entries = self.combobox.valid_variants();
 
                 if *valid_entries[index].chars().last().unwrap() == Character::from_char('/') {
-                    self.combobox.selection = ComboSelection::TextBox;
+                    self.combobox.reset_selection();
                     self.check_directories();
                     return (true, None);
                 }
@@ -127,7 +127,7 @@ impl FileBox {
                 self.combobox.clear(language_manager);
             }
 
-            self.combobox.selection = ComboSelection::TextBox;
+            self.combobox.reset_selection();
             self.check_directories();
             return (true, None);
         }

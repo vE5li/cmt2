@@ -21,10 +21,22 @@ impl LoadedBuffersDialogue {
         }
     }
 
-    pub fn handle_action(&mut self, interface_context: &InterfaceContext, language_manager: &mut LanguageManager, action: Action) -> (bool, Option<bool>) {
+    pub fn handle_action(&mut self, interface_context: &InterfaceContext, resource_manager: &mut ResourceManager, language_manager: &mut LanguageManager, action: Action) -> (bool, Option<bool>) {
 
         if let Action::LoadedBuffers = action {
             return (true, Some(false));
+        }
+
+        if let Action::Delete = action {
+            if !self.combobox.is_textbox_focused() {
+                let buffer_name = self.combobox.get();
+
+                // make sure that buffer has no unsaved changes
+
+                resource_manager.filebuffers.remove(&buffer_name.serialize());
+                self.combobox.remove_selected_variant(interface_context, language_manager);
+                return (true, None);
+            }
         }
 
         return self.combobox.handle_action(interface_context, language_manager, action);

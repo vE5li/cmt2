@@ -76,10 +76,7 @@ impl TextBox {
 
     pub fn update_layout(&mut self, interface_context: &InterfaceContext, theme: &DialogueTheme, size: Vector2f, position: Vector2f) {
         let dialogue_height = theme.height * interface_context.font_size as f32;
-
-        // make sure that size.y > dialogue_height ?
-
-        self.textbuffer.resize(interface_context, Vector2f::new(size.x, dialogue_height));
+        self.textbuffer.update_layout(interface_context, &self.textbuffer_context, &self.filebuffer, Vector2f::new(size.x, dialogue_height));
         self.textbuffer.set_position(position);
     }
 

@@ -87,7 +87,6 @@ impl<'i> Instance<'i> {
 
                     Action::ZoomIn => {
                         if self.interface_context.zoom_in() {
-                            //self.check_selection_gaps();
                             force_update = true;
                             force_rerender = true;
                         }
@@ -201,8 +200,9 @@ impl<'i> Instance<'i> {
         if force_update {
             let interface_context = &self.interface_context;
             let textbuffer_context = &self.textbuffer_context;
+            let resource_manager = &self.resource_manager;
             let interface_theme = &self.interface_theme;
-            self.windows.iter_mut().for_each(|window| window.update_layout(interface_context, textbuffer_context, interface_theme));
+            self.windows.iter_mut().for_each(|window| window.update_layout(interface_context, textbuffer_context, resource_manager, interface_theme));
         }
 
         if force_reallocate {

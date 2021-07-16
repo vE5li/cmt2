@@ -8,7 +8,7 @@ use sfml::system::Vector2f;
 use dialogues::DialogueTheme;
 use elements::{ TextBox, Textfield };
 use interface::{ InterfaceContext, InterfaceTheme };
-use system::LanguageManager;
+use system::{ LanguageManager, subtract_or_zero };
 use input::Action;
 
 pub use self::theme::ElementTheme;
@@ -61,6 +61,7 @@ pub struct ComboBox {
     pub scroll: usize,
     pub size: Vector2f,
     pub position: Vector2f,
+    line_count: usize,
 }
 
 impl ComboBox {
@@ -76,6 +77,7 @@ impl ComboBox {
             scroll: 0,
             size: Vector2f::new(0., 0.),
             position: Vector2f::new(0., 0.),
+            line_count: 0,
         }
     }
 
@@ -94,9 +96,7 @@ impl ComboBox {
                     false => self.textbox.set_text_without_save(language_manager, valid_variants[new_index].clone())
                 }
 
-                if self.scroll != 0 && interface_context.selection_gap + self.scroll > new_index {
-                    self.scroll -= 1;
-                }
+                self.check_selection_gaps(interface_context, new_index);
             }
         }
     }
@@ -118,7 +118,7 @@ impl ComboBox {
         if let ComboSelection::Variant(index, original) = self.selection.clone() {
             let valid_variants = self.valid_variants();
 
-            if index < valid_variants.len() - 1 {
+            if index + 1 < valid_variants.len() {
                 self.selection = ComboSelection::Variant(index + 1, original.clone());
                 self.textbox.set_text(language_manager, valid_variants[index + 1].clone());
 
@@ -127,11 +127,18 @@ impl ComboBox {
                     false => self.textbox.set_text_without_save(language_manager, valid_variants[index + 1].clone())
                 }
 
-                // UNCOMMENT!!!!
-                //if interface_context.selection_gap + self.displacement + 4.0 > interface_context.height + self.scroll - index {
-                //    self.scroll += 1;
-                //}
+                self.check_selection_gaps(interface_context, index + 1);
             }
+        }
+    }
+
+    fn check_selection_gaps(&mut self, interface_context: &InterfaceContext, index: usize) {
+        if interface_context.selection_gap * 2 >= self.line_count {
+            self.scroll = subtract_or_zero(index, self.line_count / 2);
+        } else if interface_context.selection_gap + self.scroll > index {
+            self.scroll = subtract_or_zero(index, interface_context.selection_gap);
+        } else if index + 1 - self.scroll + interface_context.selection_gap > self.line_count {
+            self.scroll = index + 1 - (self.line_count - interface_context.selection_gap);
         }
     }
 
@@ -167,8 +174,42 @@ impl ComboBox {
         return valid_variants;
     }
 
+    pub fn remove_selected_variant(&mut self, interface_context: &InterfaceContext, language_manager: &mut LanguageManager) {
+        if let ComboSelection::Variant(index, original) = &self.selection {
+            self.variants.remove(*index);
+        }
+
+        if let ComboSelection::Variant(index, original) = self.selection.clone() {
+            let valid_variants = self.valid_variants();
+
+            if valid_variants.is_empty() {
+                self.selection = ComboSelection::TextBox;
+                self.textbox.set_text(language_manager, original);
+                return;
+            }
+
+            let new_index = match index >= valid_variants.len() {
+                true => index - 1,
+                false => index,
+            };
+
+            self.selection = ComboSelection::Variant(new_index, original.clone());
+
+            match self.path_mode {
+                true => self.textbox.set_text_without_save(language_manager, self.get_combined(&valid_variants[new_index])),
+                false => self.textbox.set_text_without_save(language_manager, valid_variants[new_index].clone())
+            }
+
+            self.check_selection_gaps(interface_context, new_index);
+        }
+    }
+
     pub fn get(&self) -> SharedString {
         return self.textbox.get();
+    }
+
+    pub fn is_textbox_focused(&self) -> bool {
+        return self.selection.is_textbox();
     }
 
     pub fn set_text(&mut self, language_manager: &mut LanguageManager, text: SharedString) {
@@ -180,7 +221,7 @@ impl ComboBox {
         self.textbox.clear(language_manager);
     }
 
-    fn reset_selection(&mut self) {
+    pub fn reset_selection(&mut self) {
         self.selection = ComboSelection::TextBox;
         self.scroll = 0;
     }
@@ -295,8 +336,18 @@ impl ComboBox {
 
     pub fn update_layout(&mut self, interface_context: &InterfaceContext, theme: &DialogueTheme, size: Vector2f, position: Vector2f) {
         self.textbox.update_layout(interface_context, theme, size, position);
+
+        let float_font_size = interface_context.font_size as f32;
+        let height = (size.y - theme.height * float_font_size) * theme.display_height;
+        let element_height = (theme.height * float_font_size) + (theme.unfocused_element_theme.padding * float_font_size);
+
+        self.line_count = (height / element_height) as usize;
         self.size = size;
         self.position = position;
+
+        if let ComboSelection::Variant(index, ..) = self.selection.clone() {
+            self.check_selection_gaps(interface_context, index);
+        }
     }
 
     pub fn render(&self, framebuffer: &mut RenderTexture, interface_context: &InterfaceContext, theme: &DialogueTheme, focused: bool) {
@@ -314,8 +365,8 @@ impl ComboBox {
             let size = Vector2f::new(self.size.x, dialogue_height);
             let valid_variants = self.valid_variants();
 
-            for index in 0..valid_variants.len() {
-                if top_position > self.size.y {
+            for index in self.scroll..valid_variants.len() {
+                if top_position > self.size.y || index - self.scroll >= self.line_count {
                     break;
                 }
 

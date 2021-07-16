@@ -40,7 +40,6 @@ macro_rules! confirm_or_error {
 pub struct Interface {
     file_name: SharedString,
     textbuffer: Textbuffer,
-    size: Vector2f,
     dialogue_mode: DialogueMode,
     open_file_dialogue: OpenFileDialogue,
     loaded_buffers_dialogue: LoadedBuffersDialogue,
@@ -64,7 +63,6 @@ impl Interface {
         success!(Self {
             file_name: SharedString::from(&new_name),
             textbuffer: Textbuffer::new(window_id, Vector2f::new(400., 50.), Vector2f::new(0., 0.), '\n'),
-            size: Vector2f::new(0.0, 0.0),
             dialogue_mode: DialogueMode::None,
             open_file_dialogue: OpenFileDialogue::new(language_manager),
             loaded_buffers_dialogue: LoadedBuffersDialogue::new(language_manager),
@@ -78,7 +76,7 @@ impl Interface {
         })
     }
 
-    pub fn update_layout(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &InterfaceTheme) {
+    pub fn update_layout(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, resource_manager: &ResourceManager, theme: &InterfaceTheme, size: Vector2f) {
         let character_scaling = interface_context.character_spacing * interface_context.font_size as f32;
         let line_number_offset = match textbuffer_context.line_numbers {
             true => theme.textbuffer_theme.line_number_width as f32 * character_scaling + theme.textbuffer_theme.line_number_offset * interface_context.font_size as f32,
@@ -88,25 +86,21 @@ impl Interface {
         let left_position = line_number_offset + theme.textbuffer_theme.offset.x * interface_context.font_size as f32;
         let right_position = theme.textbuffer_theme.offset.x * interface_context.font_size as f32;
         let top_position = theme.textbuffer_theme.offset.y * interface_context.font_size as f32;
-        let size = Vector2f::new(self.size.x - left_position - right_position, self.size.y - top_position);
+        let dialogue_size = Vector2f::new(size.x - left_position - right_position, size.y - top_position);
         let position = Vector2f::new(left_position, top_position);
 
-        self.textbuffer.update_layout(interface_context);
+        let filebuffer = resource_manager.filebuffers.get(&self.file_name.serialize()).unwrap();
+        self.textbuffer.update_layout(interface_context, textbuffer_context, filebuffer, size);
 
-        self.open_file_dialogue.update_layout(interface_context, &theme.dialogue_theme, size, position);
-        self.loaded_buffers_dialogue.update_layout(interface_context, &theme.dialogue_theme, size, position);
-        self.notes_dialogue.update_layout(interface_context, &theme.dialogue_theme, size, position);
-        self.set_language_dialogue.update_layout(interface_context, &theme.dialogue_theme, size, position);
-        self.set_theme_dialogue.update_layout(interface_context, &theme.dialogue_theme, size, position);
-        self.find_replace_dialogue.update_layout(interface_context, &theme.dialogue_theme, size, position);
-        self.action_dialogue.update_layout(interface_context, &theme.dialogue_theme, size, position);
+        self.open_file_dialogue.update_layout(interface_context, &theme.dialogue_theme, dialogue_size, position);
+        self.loaded_buffers_dialogue.update_layout(interface_context, &theme.dialogue_theme, dialogue_size, position);
+        self.notes_dialogue.update_layout(interface_context, &theme.dialogue_theme, dialogue_size, position);
+        self.set_language_dialogue.update_layout(interface_context, &theme.dialogue_theme, dialogue_size, position);
+        self.set_theme_dialogue.update_layout(interface_context, &theme.dialogue_theme, dialogue_size, position);
+        self.find_replace_dialogue.update_layout(interface_context, &theme.dialogue_theme, dialogue_size, position);
+        self.action_dialogue.update_layout(interface_context, &theme.dialogue_theme, dialogue_size, position);
 
-        self.popup.update_layout(size, position);
-    }
-
-    pub fn resize(&mut self, interface_context: &InterfaceContext, size: Vector2f) {
-        self.textbuffer.resize(interface_context, size);
-        self.size = size;
+        self.popup.update_layout(dialogue_size, position);
     }
 
     pub fn new_file(&mut self, resource_manager: &mut ResourceManager, language_manager: &mut LanguageManager) -> Status<()> {
@@ -215,7 +209,7 @@ impl Interface {
             },
 
             DialogueMode::LoadedBuffers => {
-                let (action_handled, status) = self.loaded_buffers_dialogue.handle_action(interface_context, language_manager, action);
+                let (action_handled, status) = self.loaded_buffers_dialogue.handle_action(interface_context, resource_manager, language_manager, action);
 
                 if let Some(completed) = status {
                     self.dialogue_mode = DialogueMode::None;

@@ -98,8 +98,9 @@ impl<'w> PoetWindow<'w> {
                 },
 
                 Event::Resized { width, height } => {
-                    let size = Vector2f::new(width as f32, height as f32);
-                    self.resize(interface_context, textbuffer_context, theme, size);
+                    self.size = Vector2f::new(width as f32, height as f32);
+                    self.reallocate(interface_context);
+                    self.update_layout(interface_context, textbuffer_context, resource_manager, theme);
                     force_rerender = true;
                 },
 
@@ -145,16 +146,8 @@ impl<'w> PoetWindow<'w> {
         self.surface.set_texture(unsafe { &*texture_pointer }, false);
     }
 
-    pub fn update_layout(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &InterfaceTheme) {
-        self.interface.update_layout(interface_context, textbuffer_context, theme);
-    }
-
-    pub fn resize(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &InterfaceTheme, size: Vector2f) {
-        self.interface.resize(interface_context, size);
-        self.size = size;
-
-        self.reallocate(interface_context);
-        self.update_layout(interface_context, textbuffer_context, theme);
+    pub fn update_layout(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, resource_manager: &ResourceManager, theme: &InterfaceTheme) {
+        self.interface.update_layout(interface_context, textbuffer_context, resource_manager, theme, self.size);
     }
 
     pub fn rerender(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &InterfaceTheme, resource_manager: &ResourceManager) {
