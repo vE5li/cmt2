@@ -63,7 +63,7 @@ impl Interface {
 
         success!(Self {
             file_name: SharedString::from(&new_name),
-            textbuffer: Textbuffer::new(window_id, Vector2f::new(400., 50.), Vector2f::new(0., 0.), '\n', true, true, true),
+            textbuffer: Textbuffer::new(window_id, Vector2f::new(400., 50.), Vector2f::new(0., 0.), '\n'),
             size: Vector2f::new(0.0, 0.0),
             dialogue_mode: DialogueMode::None,
             open_file_dialogue: OpenFileDialogue::new(language_manager),
@@ -127,37 +127,6 @@ impl Interface {
         return success!(());
     }
 
-    pub fn open_file(&mut self, resource_manager: &mut ResourceManager, language_manager: &mut LanguageManager, file_name: SharedString) -> Status<()> {
-
-        if file_name == self.file_name {
-            return success!(());
-        }
-
-        let mut text = confirm!(read_file(&file_name));
-        let string_file_name = file_name.serialize();
-        let language = SharedString::from("none");
-
-        if text.is_empty() || !text[text.len() - 1].is_newline() {
-            text.push(Character::from_char('\n'));
-        }
-
-        if resource_manager.filebuffers.get(&string_file_name).is_none() {
-            let filebuffer = Filebuffer::new(language_manager, language, text.clone());
-            resource_manager.filebuffers.insert(string_file_name.clone(), filebuffer);
-        }
-
-        let current_file_name = self.file_name.serialize();
-        let current_file_length = resource_manager.filebuffers.get(&current_file_name).unwrap().length();
-
-        if self.file_name[0] == Character::from_char('<') && current_file_length <= 1 {
-            resource_manager.filebuffers.remove(&current_file_name);
-        }
-
-        // update language
-        //return self.textbuffer.set_text(text);
-        return success!(());
-    }
-
     pub fn save_file(&mut self, resource_manager: &mut ResourceManager) {
 
         if self.file_name[0] == Character::from_char('<') {
@@ -185,7 +154,23 @@ impl Interface {
         if file_name != self.file_name {
 
             if resource_manager.filebuffers.get(&string_file_name).is_none() {
-                self.open_file(resource_manager, language_manager, file_name.clone());
+
+                let language = SharedString::from("none");
+                let mut text = display!(read_file(&file_name));
+
+                if text.is_empty() || !text[text.len() - 1].is_newline() {
+                    text.push(Character::from_char('\n'));
+                }
+
+                let filebuffer = Filebuffer::new(language_manager, language, text.clone());
+                resource_manager.filebuffers.insert(string_file_name.clone(), filebuffer);
+            }
+
+            let current_file_name = self.file_name.serialize();
+            let current_file_length = resource_manager.filebuffers.get(&current_file_name).unwrap().length();
+
+            if self.file_name[0] == Character::from_char('<') && current_file_length <= 1 {
+                resource_manager.filebuffers.remove(&current_file_name);
             }
 
             let filebuffer = resource_manager.filebuffers.get_mut(&string_file_name).unwrap();

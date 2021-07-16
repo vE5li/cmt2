@@ -47,7 +47,7 @@ pub struct Textbuffer {
 
 impl Textbuffer {
 
-    pub fn new(window_id: usize, size: Vector2f, position: Vector2f, padding: char, selection_lines: bool, status_bar: bool, multiline: bool) -> Self {
+    pub fn new(window_id: usize, size: Vector2f, position: Vector2f, padding: char) -> Self {
         Self {
             selections: vec![Selection::new(0, 0, 0)],
             mode: SelectionMode::Character,

@@ -33,7 +33,7 @@ impl TextBox {
 
     pub fn new(language_manager: &mut LanguageManager, description: &'static str, displacement: usize) -> Self {
         let language = SharedString::from("dialogue");
-        let textbuffer = Textbuffer::new(0, Vector2f::new(400., 50.), Vector2f::new(0., 0.), ' ', false, false, false);
+        let textbuffer = Textbuffer::new(0, Vector2f::new(400., 50.), Vector2f::new(0., 0.), ' ');
 
         Self {
             description: SharedString::from(description),
