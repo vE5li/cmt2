@@ -154,6 +154,11 @@ impl<'i> Instance<'i> {
                         force_rerender = true;
                     },
 
+                    Action::ToggleRelativeLineNumbers => {
+                        self.textbuffer_context.toggle_relative_line_numbers();
+                        force_rerender = true;
+                    },
+
                     Action::Quit => {
                         panic!("implement");
                     },

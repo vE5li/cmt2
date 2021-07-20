@@ -11,6 +11,7 @@ pub struct TextbufferContext {
     pub preserve_lines: bool,
     pub unfocused_selections: bool,
     pub start_at_symbol: bool,
+    pub relative_line_numbers: bool,
     pub multiline: bool,
     pub selection_gap: usize,
 }
@@ -29,6 +30,7 @@ impl TextbufferContext {
             preserve_lines: true,
             unfocused_selections: true,
             start_at_symbol: true,
+            relative_line_numbers: true,
             multiline: true,
             selection_gap: 8,
         }
@@ -46,6 +48,7 @@ impl TextbufferContext {
             preserve_lines: true,
             unfocused_selections: false,
             start_at_symbol: false,
+            relative_line_numbers: false,
             multiline: false,
             selection_gap: 0,
         }
@@ -101,5 +104,9 @@ impl TextbufferContext {
 
     pub fn toggle_start_at_symbol(&mut self) {
         self.start_at_symbol = !self.start_at_symbol;
+    }
+
+    pub fn toggle_relative_line_numbers(&mut self) {
+        self.relative_line_numbers = !self.relative_line_numbers;
     }
 }

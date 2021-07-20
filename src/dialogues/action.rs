@@ -27,6 +27,7 @@ impl ActionDialogue {
             SharedString::from("highlighting"),
             SharedString::from("preserve_lines"),
             SharedString::from("start_at_symbol"),
+            SharedString::from("relative_line_numbers"),
             SharedString::from("unfocused_selections"),
             SharedString::from("character_mode"),
             SharedString::from("word_mode"),
