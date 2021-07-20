@@ -3,7 +3,7 @@ interface {
     textbuffer {
 
         background {
-            background_color [ 35 35 35 ]
+            background_color 35
         }
 
         selection {
@@ -11,81 +11,49 @@ interface {
             single_selection {
 
                 field {
-                    background_color [ 90 90 90 ]
-                    corner_radius 0.2
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
+                    background_color 90
+                    corner_radius 0.1
                 }
 
                 text {
-                    text_color [ 150 150 150 ]
-                    text_style regular
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
+                    text_color 150
                 }
-
-                alignment left
-                text_offset 0.0
             }
 
             first_selection {
 
                 field {
-                    background_color [ 90 90 90 ]
-                    corner_radius [ 0.2 0 0 0.2 ]
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
+                    background_color 90
+                    corner_radius [ 0.1 0 0 0.1 ]
                 }
 
                 text {
-                    text_color [ 150 150 150 ]
-                    text_style regular
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
+                    text_color 150
                 }
-
-                alignment left
-                text_offset 0.0
             }
 
             last_selection {
 
                 field {
-                    background_color [ 90 90 90 ]
-                    corner_radius [ 0 0.2 0.2 0 ]
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
+                    background_color 90
+                    corner_radius [ 0 0.1 0.1 0 ]
                 }
 
                 text {
-                    text_color [ 150 150 150 ]
-                    text_style regular
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
+                    text_color 150
                 }
-
-                alignment left
-                text_offset 0.0
             }
 
             center_selection {
 
                 field {
-                    background_color [ 90 90 90 ]
+                    background_color 90
                     corner_radius 0.0
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
                 }
 
                 text {
-                    text_color [ 150 150 150 ]
-                    text_style regular
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
+                    text_color 150
                 }
-
-                alignment left
-                text_offset 0.0
             }
         }
 
@@ -94,131 +62,153 @@ interface {
             single_selection {
 
                 field {
-                    background_color [ 150 150 150 ]
-                    corner_radius 0.2
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
+                    background_color 150
+                    corner_radius 0.1
                 }
 
                 text {
-                    text_color [ 35 35 35 ]
-                    text_style bold
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
+                    text_color 35
                 }
-
-                alignment left
-                text_offset 0.0
             }
 
             first_selection {
 
                 field {
-                    background_color [ 150 150 150 ]
-                    corner_radius [ 0.2 0 0 0.2 ]
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
+                    background_color 150
+                    corner_radius [ 0.1 0 0 0.1 ]
                 }
 
                 text {
-                    text_color [ 35 35 35 ]
-                    text_style bold
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
+                    text_color 35
                 }
-
-                alignment left
-                text_offset 0.0
             }
 
             last_selection {
 
                 field {
-                    background_color [ 150 150 150 ]
-                    corner_radius [ 0 0.2 0.2 0 ]
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
+                    background_color 150
+                    corner_radius [ 0 0.1 0.1 0 ]
                 }
 
                 text {
-                    text_color [ 35 35 35 ]
-                    text_style bold
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
+                    text_color 35
                 }
-
-                alignment left
-                text_offset 0.0
             }
 
             center_selection {
 
                 field {
-                    background_color [ 150 150 150 ]
+                    background_color 150
                     corner_radius 0.0
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
                 }
 
                 text {
-                    text_color [ 35 35 35 ]
-                    text_style bold
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
+                    text_color 35
                 }
-
-                alignment left
-                text_offset 0.0
             }
         }
 
         status_bar {
 
-            field {
-                background_color [ 50 0 0 ]
-                corner_radius 0.5
-                border_width 0.5
-                border_color [ 0 0 0 ]
+            textfield {
+
+                field {
+                    background_color 60
+                    border_width 0.2
+                    border_color 35
+                }
+
+                text {
+                    text_color 150
+                }
+
+                alignment right
+                text_offset 1.0
             }
 
-            text {
-                text_color [ 0 0 200 ]
-                text_style regular
-                border_width 0.0
-                border_color [ 0 0 0 ]
-            }
-
-            alignment left
-            text_offset 2.0
+            height 1.35
         }
 
         line_number {
 
             field {
-                background_color [ 60 60 60 ]
-                corner_radius 0.0
-                border_width 0.0
-                border_color [ 0 0 0 ]
+                background_color 60
             }
 
             text {
-                text_color [ 35 35 35 ]
+                text_color 35
                 text_style bold
-                border_width 0.0
-                border_color [ 0 0 0 ]
             }
 
-            alignment left
+            text_offset 0.5
+        }
+
+        highlighted_line_number {
+
+            field {
+                background_color 60
+            }
+
+            text {
+                text_color [ 153 125 60 ]
+                text_style bold
+            }
+
             text_offset 0.5
         }
 
         selection_line {
-            background_color [ 45 45 45 ]
+            background_color 45
         }
 
         text {
-            text_color [ 150 150 150 ]
-            text_style regular
+            text_color 150
+        }
+
+        comment {
+            text_color 100
+            text_style italic
+        }
+
+        operator {
+            text_color [ 175 171 117 ]
+        }
+
+        keyword {
+            text_color [ 55 163 198 ]
+        }
+
+        identifier {
+            text_color 187
+        }
+
+        type_identifier {
+            text_color [ 211 54 130 ]
+        }
+
+        character {
+            text_color [ 216 121 58 ]
+        }
+
+        string {
+            text_color [ 216 208 58 ]
+        }
+
+        integer {
+            text_color [ 42 161 152 ]
+        }
+
+        float {
+            text_color [ 42 161 152 ]
+        }
+
+        invalid {
+            text_color [ 234 28 59 ]
+            text_style bold
+        }
+
+        ignored {
+            text_color 150
         }
 
         offset [ 0.5 0.5 ]
@@ -233,7 +223,7 @@ interface {
             textbuffer {
 
                 background {
-                    background_color [ 29 185 84 ]
+                    background_color 70
                 }
 
                 selection {
@@ -241,88 +231,130 @@ interface {
                     single_selection {
 
                         field {
-                            background_color [ 21 107 51 ]
+                            background_color 120
                             corner_radius 0.1
-                            border_width 0.0
-                            border_color [ 0 0 0 ]
                         }
 
                         text {
-                            text_color [ 153 216 175 ]
-                            text_style regular
-                            border_width 0.0
-                            border_color [ 0 0 0 ]
+                            text_color 60
+                            text_style bold
                         }
-
-                        alignment left
-                        text_offset 0.0
                     }
 
                     first_selection {
 
                         field {
-                            background_color [ 21 107 51 ]
+                            background_color 120
                             corner_radius [ 0.1 0 0 0.1 ]
-                            border_width 0.0
-                            border_color [ 0 0 0 ]
                         }
 
                         text {
-                            text_color [ 153 216 175 ]
-                            text_style regular
-                            border_width 0.0
-                            border_color [ 0 0 0 ]
+                            text_color 60
+                            text_style bold
                         }
-
-                        alignment left
-                        text_offset 0.0
                     }
 
                     last_selection {
 
                         field {
-                            background_color [ 21 107 51 ]
+                            background_color 120
                             corner_radius [ 0 0.1 0.1 0 ]
-                            border_width 0.0
-                            border_color [ 0 0 0 ]
                         }
 
                         text {
-                            text_color [ 153 216 175 ]
-                            text_style regular
-                            border_width 0.0
-                            border_color [ 0 0 0 ]
+                            text_color 60
+                            text_style bold
                         }
-
-                        alignment left
-                        text_offset 0.0
                     }
 
                     center_selection {
 
                         field {
-                            background_color [ 21 107 51 ]
+                            background_color 120
                             corner_radius 0.0
-                            border_width 0.0
-                            border_color [ 0 0 0 ]
                         }
 
                         text {
-                            text_color [ 153 216 175 ]
-                            text_style regular
-                            border_width 0.0
-                            border_color [ 0 0 0 ]
+                            text_color 60
+                            text_style bold
+                        }
+                    }
+                }
+
+                new_selection {
+
+                    single_selection {
+
+                        field {
+                            background_color 150
+                            corner_radius 0.1
                         }
 
-                        alignment left
-                        text_offset 0.0
+                        text {
+                            text_color 35
+                        }
                     }
+
+                    first_selection {
+
+                        field {
+                            background_color 150
+                            corner_radius [ 0.1 0 0 0.1 ]
+                        }
+
+                        text {
+                            text_color 35
+                        }
+                    }
+
+                    last_selection {
+
+                        field {
+                            background_color 150
+                            corner_radius [ 0 0.1 0.1 0 ]
+                        }
+
+                        text {
+                            text_color 35
+                        }
+                    }
+
+                    center_selection {
+
+                        field {
+                            background_color 150
+                            corner_radius 0.0
+                        }
+
+                        text {
+                            text_color 35
+                        }
+                    }
+                }
+
+                text {
+                    text_color 170
+                }
+
+                operator {
+                    text_color [ 183 161 95 ]
+                    text_style bold
+                }
+
+                identifier {
+                    text_color 170
+                }
+
+                invalid {
+                    text_color [ 234 28 59 ]
+                }
+
+                ignored {
+                    text_color 170
                 }
 
                 offset [ 1.0 0.0 ]
             }
-
-            padding 0.0
         }
 
         unfocused_textbox {
@@ -330,13 +362,32 @@ interface {
             textbuffer {
 
                 background {
-                    background_color [ 83 127 98 ]
+                    background_color 60
+                }
+
+                text {
+                    text_color 130
+                }
+
+                operator {
+                    text_color [ 163 150 110 ]
+                    text_style bold
+                }
+
+                identifier {
+                    text_color 130
+                }
+
+                invalid {
+                    text_color [ 234 28 59 ]
+                }
+
+                ignored {
+                    text_color 130
                 }
 
                 offset [ 1.0 0.0 ]
             }
-
-            padding 0.0
         }
 
         focused_element {
@@ -344,18 +395,15 @@ interface {
             textfield {
 
                 field {
-                    background_color [ 29 185 84 ]
+                    background_color 70
                 }
 
-                @text {
-                @    text_color [ 200 200 200 ]
-                @}
+                text {
+                    text_color 170
+                }
 
-                alignment left
                 text_offset 1.0
             }
-
-            padding 0.0
         }
 
         unfocused_element {
@@ -363,18 +411,15 @@ interface {
             textfield {
 
                 field {
-                    background_color [ 50 50 50 ]
+                    background_color 50
                 }
 
                 text {
-                    text_color [ 125 125 125 ]
+                    text_color 100
                 }
 
-                alignment left
                 text_offset 1.0
             }
-
-            padding 0.0
         }
 
         height 1.5
@@ -389,19 +434,13 @@ interface {
                 field {
                     background_color [ 50 0 0 ]
                     corner_radius 0.5
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
                 }
 
                 text {
                     text_color [ 0 0 200 ]
-                    text_style regular
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
                 }
 
-                alignment left
-                text_offset 2.0
+                text_offset 1.0
             }
 
             height 1.5
@@ -414,25 +453,25 @@ interface {
                 field {
                     background_color [ 100 0 0 ]
                     corner_radius 0.5
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
                 }
 
                 text {
                     text_color [ 0 0 200 ]
-                    text_style regular
-                    border_width 0.0
-                    border_color [ 0 0 0 ]
                 }
 
-                alignment left
-                text_offset 2.0
+                text_offset 1.0
             }
 
             height 1.5
         }
 
         error {
+
+            @ background_color [ 200 40 40 ]
+            @ text_color 30
+            @ text_style bold
+            @ text_offset 1.0
+            @ height 1.5
 
             textfield {
 
@@ -441,12 +480,11 @@ interface {
                 }
 
                 text {
-                    text_color [ 30 30 30 ]
+                    text_color 30
                     text_style bold
                 }
 
-                alignment left
-                text_offset 2.0
+                text_offset 1.0
             }
 
             height 1.5
