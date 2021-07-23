@@ -1,5 +1,3 @@
-
-
 pub struct TextbufferContext {
     pub line_numbers: bool,
     pub tab_width: usize,
@@ -30,7 +28,7 @@ impl TextbufferContext {
             preserve_lines: true,
             unfocused_selections: true,
             start_at_symbol: true,
-            relative_line_numbers: true,
+            relative_line_numbers: false,
             multiline: true,
             selection_gap: 8,
         }

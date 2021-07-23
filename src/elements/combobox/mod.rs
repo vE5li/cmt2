@@ -1,79 +1,58 @@
-mod theme;
+mod selection;
+mod item;
 
 use seamonkey::*;
 
 use sfml::graphics::*;
 use sfml::system::Vector2f;
 
-use dialogues::DialogueTheme;
-use elements::{ TextBox, Textfield };
-use interface::{ InterfaceContext, InterfaceTheme };
-use system::{ LanguageManager, subtract_or_zero };
 use input::Action;
+use themes::{ InterfaceTheme, DialogueTheme, ItemTheme };
+use elements::{ TextBox, Textfield };
+use dialogues::DialogueStatus;
+use managers::LanguageManager;
+use interface::InterfaceContext;
+use system::subtract_or_zero;
 
-pub use self::theme::ElementTheme;
+pub use self::selection::ComboSelection;
+pub use self::item::ComboItem;
 
 macro_rules! handle_return_none {
     ($expression: expr) => ({
         $expression;
-        return (true, None);
+        return DialogueStatus::handled();
     })
 }
 
 macro_rules! handle_maybe_return_none {
     ($expression: expr) => ({
         if ($expression) {
-            return (true, None);
+            return DialogueStatus::handled();
         }
     })
 }
 
-#[derive(Clone)]
-pub enum ComboSelection {
-    TextBox,
-    Variant(usize, SharedString),
-}
-
-impl ComboSelection {
-
-    pub fn is_textbox(&self) -> bool {
-        match self {
-            ComboSelection::TextBox => return true,
-            _other => return false,
-        }
-    }
-
-    pub fn index_matches(&self, selected: usize) -> bool {
-        match self {
-            ComboSelection::TextBox => return false,
-            ComboSelection::Variant(index, _original) => return *index == selected,
-        }
-    }
-}
-
-pub struct ComboBox {
-    pub textbox: TextBox,
-    pub allow_unknown: bool,
-    pub variants: Vec<SharedString>,
-    pub selection: ComboSelection,
-    pub displacement: usize,
-    pub path_mode: bool,
-    pub scroll: usize,
-    pub size: Vector2f,
-    pub position: Vector2f,
+pub struct ComboBox<I: ComboItem + Clone> {
+    textbox: TextBox,
+    allow_unknown: bool,
+    items: Vec<I>,
+    selection: ComboSelection,
+    displacement: usize,
+    scroll: usize,
+    size: Vector2f,
+    position: Vector2f,
     line_count: usize,
 }
 
-impl ComboBox {
+impl<I: ComboItem + Clone> ComboBox<I> {
 
-    pub fn new(language_manager: &mut LanguageManager, description: &'static str, displacement: usize, allow_unknown: bool, path_mode: bool, variants: Vec<SharedString>) -> Self {
+    pub fn new(language_manager: &mut LanguageManager, description: &'static str, displacement: usize, allow_unknown: bool, items: Vec<I>) -> Self {
         Self {
             textbox: TextBox::new(language_manager, description, displacement),
             allow_unknown: allow_unknown,
-            variants: variants,
+            items: items,
             selection: ComboSelection::TextBox,
             displacement: displacement,
-            path_mode: path_mode,
             scroll: 0,
             size: Vector2f::new(0., 0.),
             position: Vector2f::new(0., 0.),
@@ -82,20 +61,17 @@ impl ComboBox {
     }
 
     fn move_up(&mut self, interface_context: &InterfaceContext, language_manager: &mut LanguageManager) {
-        if let ComboSelection::Variant(index, original) = self.selection.clone() {
+        if let ComboSelection::Item(index, original) = self.selection.clone() {
             if index == 0 {
                 self.selection = ComboSelection::TextBox;
-                self.textbox.set_text(language_manager, original);
+                self.textbox.set_text_without_save(language_manager, original);
             } else {
                 let new_index = index - 1;
-                let valid_variants = self.valid_variants();
-                self.selection = ComboSelection::Variant(new_index, original.clone());
+                let valid_items = self.valid_items();
+                self.selection = ComboSelection::Item(new_index, original.clone());
 
-                match self.path_mode {
-                    true => self.textbox.set_text_without_save(language_manager, self.get_combined(&valid_variants[new_index])),
-                    false => self.textbox.set_text_without_save(language_manager, valid_variants[new_index].clone())
-                }
-
+                let text = valid_items[new_index].update_name();
+                self.textbox.set_text_without_save(language_manager, text);
                 self.check_selection_gaps(interface_context, new_index);
             }
         }
@@ -103,30 +79,24 @@ impl ComboBox {
 
     fn move_down(&mut self, interface_context: &InterfaceContext, language_manager: &mut LanguageManager) {
         if let ComboSelection::TextBox = self.selection.clone() {
-            let valid_variants = self.valid_variants();
-            if !valid_variants.is_empty() {
-                self.selection = ComboSelection::Variant(0, self.textbox.get());
+            let valid_items = self.valid_items();
 
-                match self.path_mode {
-                    true => self.textbox.set_text_without_save(language_manager, self.get_combined(&valid_variants[0])),
-                    false => self.textbox.set_text_without_save(language_manager, valid_variants[0].clone())
-                }
+            if !valid_items.is_empty() {
+                self.selection = ComboSelection::Item(0, self.textbox.get_text());
+                let text = valid_items[0].update_name();
+                self.textbox.set_text_without_save(language_manager, text);
             }
+
             return;
         }
 
-        if let ComboSelection::Variant(index, original) = self.selection.clone() {
-            let valid_variants = self.valid_variants();
+        if let ComboSelection::Item(index, original) = self.selection.clone() {
+            let valid_items = self.valid_items();
 
-            if index + 1 < valid_variants.len() {
-                self.selection = ComboSelection::Variant(index + 1, original.clone());
-                self.textbox.set_text(language_manager, valid_variants[index + 1].clone());
-
-                match self.path_mode {
-                    true => self.textbox.set_text_without_save(language_manager, self.get_combined(&valid_variants[index + 1])),
-                    false => self.textbox.set_text_without_save(language_manager, valid_variants[index + 1].clone())
-                }
-
+            if index + 1 < valid_items.len() {
+                self.selection = ComboSelection::Item(index + 1, original);
+                let text = valid_items[index + 1].update_name();
+                self.textbox.set_text_without_save(language_manager, text);
                 self.check_selection_gaps(interface_context, index + 1);
             }
         }
@@ -142,70 +112,65 @@ impl ComboBox {
         }
     }
 
-    pub fn get_combined(&self, suffix: &SharedString) -> SharedString {
+    pub fn set_items(&mut self, items: Vec<I>) {
+        self.items = items;
+        // cap selection !!!!!!
+    }
+
+    pub fn valid_items(&self) -> Vec<I> {
+        let mut valid_items = self.items.clone();
         let original = match &self.selection {
-            ComboSelection::Variant(_index, original) => original.clone(),
-            ComboSelection::TextBox => self.textbox.get(),
+            ComboSelection::Item(_index, original) => original.clone(),
+            ComboSelection::TextBox => self.textbox.get_text(),
         };
-
-        let positions = original.position(&SharedString::from("/"));
-        if !positions.is_empty() {
-            let mut combined = original.slice(0, positions[positions.len() - 1]);
-            combined.push_str(suffix);
-            return combined;
-        }
-
-        return suffix.clone();
+        valid_items.retain(|item| item.update_name().contains(&original));
+        return valid_items;
     }
 
-    pub fn valid_variants(&self) -> Vec<SharedString> {
-        let mut original = match &self.selection {
-            ComboSelection::Variant(_index, original) => original.clone(),
-            ComboSelection::TextBox => self.textbox.get(),
-        };
-
-        if self.path_mode {
-            let pieces = original.split(&SharedString::from("/"), false);
-            original = pieces[pieces.len() - 1].clone();
+    pub fn remove_selected_item(&mut self, interface_context: &InterfaceContext, language_manager: &mut LanguageManager) {
+        if let ComboSelection::Item(index, original) = &self.selection {
+            self.items.remove(*index);
         }
 
-        let mut valid_variants = self.variants.clone();
-        valid_variants.retain(|variant| variant.contains(&original));
-        return valid_variants;
-    }
+        if let ComboSelection::Item(index, original) = self.selection.clone() {
+            let valid_items = self.valid_items();
 
-    pub fn remove_selected_variant(&mut self, interface_context: &InterfaceContext, language_manager: &mut LanguageManager) {
-        if let ComboSelection::Variant(index, original) = &self.selection {
-            self.variants.remove(*index);
-        }
-
-        if let ComboSelection::Variant(index, original) = self.selection.clone() {
-            let valid_variants = self.valid_variants();
-
-            if valid_variants.is_empty() {
+            if valid_items.is_empty() {
                 self.selection = ComboSelection::TextBox;
-                self.textbox.set_text(language_manager, original);
+                self.textbox.set_text_without_save(language_manager, original);
                 return;
             }
 
-            let new_index = match index >= valid_variants.len() {
+            let new_index = match index >= valid_items.len() {
                 true => index - 1,
                 false => index,
             };
 
-            self.selection = ComboSelection::Variant(new_index, original.clone());
-
-            match self.path_mode {
-                true => self.textbox.set_text_without_save(language_manager, self.get_combined(&valid_variants[new_index])),
-                false => self.textbox.set_text_without_save(language_manager, valid_variants[new_index].clone())
-            }
-
+            self.selection = ComboSelection::Item(new_index, original.clone());
+            let text = valid_items[new_index].update_name();
+            self.textbox.set_text_without_save(language_manager, text);
             self.check_selection_gaps(interface_context, new_index);
         }
     }
 
-    pub fn get(&self) -> SharedString {
-        return self.textbox.get();
+    pub fn get_text(&self) -> SharedString {
+        return self.textbox.get_text();
+    }
+
+    pub fn get_value(&self) -> I::Value {
+        let text = self.get_text();
+        return self.items.iter().find(|item| item.update_name() == text).unwrap().return_value();
+    }
+
+    pub fn get_selection(&self) -> ComboSelection {
+        return self.selection.clone();
+    }
+
+    pub fn get_original(&self) -> SharedString {
+        match &self.selection {
+           ComboSelection::Item(_index, original) => return original.clone(),
+           ComboSelection::TextBox => return self.textbox.get_text(),
+        }
     }
 
     pub fn is_textbox_focused(&self) -> bool {
@@ -227,46 +192,35 @@ impl ComboBox {
     }
 
     fn focus_next(&mut self, language_manager: &mut LanguageManager) -> bool {
-        let valid_variants = self.valid_variants();
-
-        if valid_variants.is_empty() {
+        let valid_items = self.valid_items();
+        if valid_items.is_empty() {
             return false;
         }
 
         let suffix = match &self.selection {
-            ComboSelection::Variant(index, _original) => valid_variants[*index].clone(),
-            ComboSelection::TextBox => valid_variants[0].clone(),
+            ComboSelection::Item(index, _original) => valid_items[*index].update_name(),
+            ComboSelection::TextBox => valid_items[0].update_name(),
         };
 
-        match self.path_mode {
-            true => self.textbox.set_text(language_manager, self.get_combined(&suffix)),
-            false => self.textbox.set_text(language_manager, suffix),
-        }
-
+        self.textbox.set_text(language_manager, suffix);
         self.reset_selection();
         return true;
     }
 
-    fn handle_confirm(&mut self, language_manager: &mut LanguageManager) -> bool {
-
+    fn handle_confirm(&mut self, language_manager: &mut LanguageManager) -> DialogueStatus {
         if !self.allow_unknown && self.selection.is_textbox() {
-            let valid_variants = self.valid_variants();
-            if valid_variants.is_empty() {
-                return true;
+            let valid_items = self.valid_items();
+
+            if valid_items.is_empty() {
+                return DialogueStatus::handled();
             }
 
-            match self.path_mode {
-                true => self.textbox.set_text(language_manager, self.get_combined(&valid_variants[0])),
-                false => self.textbox.set_text(language_manager, valid_variants[0].clone()),
-            }
-
-            return self.path_mode && *self.textbox.get().chars().last().unwrap() == Character::from_char('/');
+            self.textbox.set_text(language_manager, valid_items[0].update_name());
         }
-
-        return false;
+        return DialogueStatus::completed();
     }
 
-    pub fn handle_action(&mut self, interface_context: &InterfaceContext, language_manager: &mut LanguageManager, action: Action) -> (bool, Option<bool>) {
+    pub fn handle_action(&mut self, interface_context: &InterfaceContext, language_manager: &mut LanguageManager, action: Action) -> DialogueStatus {
         match action {
 
             Action::Up => handle_return_none!(self.move_up(interface_context, language_manager)),
@@ -313,20 +267,15 @@ impl ComboBox {
         if let Some(action) = self.textbox.handle_action(language_manager, action) {
             match action {
 
-                Action::Confirm => {
-                    match self.handle_confirm(language_manager) {
-                        true => return (true, None),
-                        false => return (true, Some(true)),
-                    }
-                }
+                Action::Confirm => return self.handle_confirm(language_manager),
 
-                Action::Abort => return (true, Some(false)),
+                Action::Abort => return DialogueStatus::aborted(),
 
-                _unhandled => return (false, None),
+                _unhandled => return DialogueStatus::unhandled(),
             }
         }
 
-        return (true, None);
+        return DialogueStatus::handled();
     }
 
     pub fn add_character(&mut self, language_manager: &mut LanguageManager, character: Character) {
@@ -339,13 +288,13 @@ impl ComboBox {
 
         let float_font_size = interface_context.font_size as f32;
         let height = (size.y - theme.height * float_font_size) * theme.display_height;
-        let element_height = (theme.height * float_font_size) + (theme.unfocused_element_theme.padding * float_font_size);
+        let element_height = (theme.height * float_font_size) + (theme.unfocused_item_theme.padding * float_font_size);
 
         self.line_count = (height / element_height) as usize;
         self.size = size;
         self.position = position;
 
-        if let ComboSelection::Variant(index, ..) = self.selection.clone() {
+        if let ComboSelection::Item(index, ..) = self.selection.clone() {
             self.check_selection_gaps(interface_context, index);
         }
     }
@@ -363,21 +312,21 @@ impl ComboBox {
             let dialogue_height = theme.height * interface_context.font_size as f32;
             let mut top_position = self.position.y + padding + (self.displacement + 1) as f32 * dialogue_height;
             let size = Vector2f::new(self.size.x, dialogue_height);
-            let valid_variants = self.valid_variants();
+            let valid_items = self.valid_items();
 
-            for index in self.scroll..valid_variants.len() {
+            for index in self.scroll..valid_items.len() {
                 if top_position > self.size.y || index - self.scroll >= self.line_count {
                     break;
                 }
 
-                let element_theme = match self.selection.index_matches(index) {
-                    true => &theme.focused_element_theme,
-                    false => &theme.unfocused_element_theme,
+                let item_theme = match self.selection.index_matches(index) {
+                    true => &theme.focused_item_theme,
+                    false => &theme.unfocused_item_theme,
                 };
 
                 let position = Vector2f::new(self.position.x, top_position);
-                Textfield::render(framebuffer, interface_context, &element_theme.textfield_theme, &valid_variants[index], size, position, dialogue_height);
-                top_position += dialogue_height + element_theme.padding * interface_context.font_size as f32;
+                Textfield::render(framebuffer, interface_context, valid_items[index].display_theme(item_theme), &valid_items[index].display_name(), size, position, dialogue_height);
+                top_position += dialogue_height + item_theme.padding * interface_context.font_size as f32;
             }
         }
     }

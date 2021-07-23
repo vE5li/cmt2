@@ -1,9 +1,14 @@
 use seamonkey::*;
 
-use elements::TextbufferContext;
-use interface::{ InterfaceTheme, InterfaceContext };
+#[cfg(feature = "debug")]
+use debug::*;
+
 use input::Action;
-use system::{ PoetWindow, ResourceManager, LanguageManager };
+use elements::TextbufferContext;
+use interface::InterfaceContext;
+use themes::InterfaceTheme;
+use system::PoetWindow;
+use managers::*;
 
 pub struct Instance<'i> {
     windows: Vec<PoetWindow<'i>>,
@@ -11,8 +16,7 @@ pub struct Instance<'i> {
     textbuffer_context: TextbufferContext,
     interface_theme: InterfaceTheme,
     theme_name: SharedString,
-
-    resource_manager: ResourceManager,
+    filebuffer_manager: FilebufferManager,
     language_manager: LanguageManager,
     window_counter: usize,
 }
@@ -21,40 +25,68 @@ impl<'i> Instance<'i> {
 
     pub fn new(arguments: &Vec<String>) -> Self {
 
-        //let configuration_directory = SharedString::from("/home/.config/poet/");
-        //let context = display!(Context::new(&configuration_directory));
+        #[cfg(feature = "debug")]
+        let timer = Timer::new("create instance");
 
-        //let (interface_context, textbuffer_context) = display!(load_context(&configuration_directory));
-        //let interface_theme = display!(InterfaceTheme::new(&configuration_directory));
+        #[cfg(feature = "debug")]
+        let theme_timer = Timer::new("theme");
 
-        let theme_name = SharedString::from("dark");
-
-        let theme_file = format_shared!("/home/.config/poet/themes/{}.data", &theme_name);
+        let theme_name = SharedString::from("dark.data");
+        let theme_file = format_shared!("/home/.config/poet/themes/{}", &theme_name);
         let theme_map = display!(read_map(&theme_file));
         let theme = display!(theme_map.index(&identifier!("interface")));
+        let interface_theme = InterfaceTheme::load(theme, &theme_name);
+
+        #[cfg(feature = "debug")]
+        theme_timer.stop();
+
+        #[cfg(feature = "debug")]
+        let context_timer = Timer::new("context");
 
         let interface_context = display!(InterfaceContext::temp());
-        let interface_theme = InterfaceTheme::load(theme, &theme_name);
+        let textbuffer_context = TextbufferContext::from();
+
+        #[cfg(feature = "debug")]
+        context_timer.stop();
+
+        #[cfg(feature = "debug")]
+        let manager_timer = Timer::new("managers");
+
+        let filebuffer_manager = FilebufferManager::new();
+        let language_manager = LanguageManager::new();
+
+        #[cfg(feature = "debug")]
+        manager_timer.stop();
+
+        #[cfg(feature = "debug")]
+        timer.stop();
 
         Self {
             windows: Vec::new(),
             interface_context: interface_context,
-            textbuffer_context: TextbufferContext::from(),
+            textbuffer_context: textbuffer_context,
             interface_theme: interface_theme,
             theme_name: theme_name,
-
-            resource_manager: ResourceManager::new(),
-            language_manager: LanguageManager::new(),
+            filebuffer_manager: filebuffer_manager,
+            language_manager: language_manager,
             window_counter: 0,
         }
     }
 
-    pub fn new_editor(&mut self) -> Status<()> {
-        let mut new_window = confirm!(PoetWindow::interface(&self.interface_context, &mut self.resource_manager, &mut self.language_manager, self.window_counter));
-        new_window.rerender(&self.interface_context, &self.textbuffer_context, &self.interface_theme, &mut self.resource_manager);
+    pub fn new_interface(&mut self) -> Status<()> {
+
+        #[cfg(feature = "debug")]
+        let timer = Timer::new("new interface");
+
+        let mut new_window = confirm!(PoetWindow::interface(&self.interface_context, &mut self.filebuffer_manager, &mut self.language_manager, self.window_counter));
+        new_window.rerender(&self.interface_context, &self.textbuffer_context, &self.interface_theme, &mut self.filebuffer_manager);
 
         self.window_counter += 1;
         self.windows.push(new_window);
+
+        #[cfg(feature = "debug")]
+        timer.stop();
+
         return success!(());
     }
 
@@ -69,7 +101,7 @@ impl<'i> Instance<'i> {
         let mut force_update = false;
 
         'handle: while index < self.windows.len() {
-            for action in self.windows[index].handle_input(&self.interface_context, &self.textbuffer_context, &self.interface_theme, &mut self.resource_manager, &mut self.language_manager, &mut self.theme_name) {
+            for action in self.windows[index].handle_input(&self.interface_context, &self.textbuffer_context, &self.interface_theme, &mut self.filebuffer_manager, &mut self.language_manager, &mut self.theme_name) {
                 match action {
 
                     Action::CloseWindow => {
@@ -78,10 +110,10 @@ impl<'i> Instance<'i> {
                         continue 'handle;
                     },
 
-                    Action::NewInterface => {
-                        if let Status::Error(error) = self.new_editor() {
+                    Action::NewWindow => {
+                        if let Status::Error(error) = self.new_interface() {
                             self.windows[index].set_error_state(error);
-                            self.windows[index].rerender(&self.interface_context, &self.textbuffer_context, &self.interface_theme, &self.resource_manager);
+                            self.windows[index].rerender(&self.interface_context, &self.textbuffer_context, &self.interface_theme, &self.filebuffer_manager);
                         }
                     },
 
@@ -165,18 +197,35 @@ impl<'i> Instance<'i> {
 
                     Action::Reload => {
 
-                        let theme_file = format_shared!("/home/.config/poet/themes/{}.data", &self.theme_name);
+                        #[cfg(feature = "debug")]
+                        let timer = Timer::new("reload");
+
+                        #[cfg(feature = "debug")]
+                        let theme_timer = Timer::new("theme");
+
+                        let theme_file = format_shared!("/home/.config/poet/themes/{}", &self.theme_name);
                         let theme_map = display!(read_map(&theme_file));
                         let theme = display!(theme_map.index(&identifier!("interface")));
+                        let interface_theme = InterfaceTheme::load(theme, &self.theme_name);
+                        self.interface_theme = interface_theme;
+
+                        #[cfg(feature = "debug")]
+                        theme_timer.stop();
+
+                        #[cfg(feature = "debug")]
+                        let context_timer = Timer::new("context");
 
                         let interface_context = display!(InterfaceContext::temp());
-                        let interface_theme = InterfaceTheme::load(theme, &self.theme_name);
-
                         self.interface_context = interface_context;
-                        self.interface_theme = interface_theme;
+
+                        #[cfg(feature = "debug")]
+                        context_timer.stop();
 
                         force_update = true;
                         force_rerender = true;
+
+                        #[cfg(feature = "debug")]
+                        timer.stop();
 
                         /*let configuration_directory = SharedString::from("/home/.config/poet/");
 
@@ -205,9 +254,9 @@ impl<'i> Instance<'i> {
         if force_update {
             let interface_context = &self.interface_context;
             let textbuffer_context = &self.textbuffer_context;
-            let resource_manager = &self.resource_manager;
+            let filebuffer_manager = &self.filebuffer_manager;
             let interface_theme = &self.interface_theme;
-            self.windows.iter_mut().for_each(|window| window.update_layout(interface_context, textbuffer_context, resource_manager, interface_theme));
+            self.windows.iter_mut().for_each(|window| window.update_layout(interface_context, textbuffer_context, filebuffer_manager, interface_theme));
         }
 
         if force_reallocate {
@@ -219,8 +268,8 @@ impl<'i> Instance<'i> {
             let interface_context = &self.interface_context;
             let textbuffer_context = &self.textbuffer_context;
             let interface_theme = &self.interface_theme;
-            let resource_manager = &self.resource_manager;
-            self.windows.iter_mut().for_each(|window| window.rerender(interface_context, textbuffer_context, interface_theme, resource_manager));
+            let filebuffer_manager = &self.filebuffer_manager;
+            self.windows.iter_mut().for_each(|window| window.rerender(interface_context, textbuffer_context, interface_theme, filebuffer_manager));
         }
 
         self.windows.iter_mut().for_each(|window| window.display());

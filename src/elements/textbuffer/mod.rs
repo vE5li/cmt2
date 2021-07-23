@@ -1,7 +1,6 @@
 mod word;
-mod selection;
+mod info;
 mod context;
-mod theme;
 
 use seamonkey::*;
 use seamonkey::tokenize::Tokenizer;
@@ -12,17 +11,18 @@ use std::cmp::{ min, max };
 use sfml::graphics::RenderTexture;
 use sfml::system::Vector2f;
 
-use elements::*;
-use interface::InterfaceContext;
-use dialogues::*;
 use input::Action;
-use system::{ Filebuffer, BufferAction, LanguageManager, subtract_or_zero };
+use themes::{ TextbufferTheme, StatusBarTheme };
+use interface::InterfaceContext;
+use selection::{ Selection, SelectionMode };
+use filebuffer::{ Filebuffer, BufferAction };
+use managers::LanguageManager;
+use elements::{ Text, Field, Textfield };
+use system::subtract_or_zero;
 
 pub use self::word::Word;
-
-pub use self::theme::*;
+pub use self::info::LineInfo;
 pub use self::context::TextbufferContext;
-pub use self::selection::*;
 
 macro_rules! handle_return {
     ($expression: expr) => ({
@@ -65,16 +65,18 @@ impl Textbuffer {
 
     pub fn set_text(&mut self, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer, text: SharedString) -> Status<()> {
         filebuffer.set_text(self.window_id, text);
-        self.history_index = filebuffer.get_history_index();
         self.reset(filebuffer);
         return filebuffer.retokenize(language_manager);
     }
 
     pub fn set_text_without_save(&mut self, language_manager: &mut LanguageManager, filebuffer: &mut Filebuffer, text: SharedString) -> Status<()> {
         filebuffer.set_text_without_save(text);
-        self.history_index = filebuffer.get_history_index();
         self.reset(filebuffer); // TODO: dont add change_selection_mode to undo queue
         return filebuffer.retokenize(language_manager);
+    }
+
+    pub fn get_selections(&self) -> Vec<Selection> {
+        return self.selections.clone();
     }
 
     pub fn update_layout(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, filebuffer: &Filebuffer, size: Vector2f) {
@@ -115,10 +117,20 @@ impl Textbuffer {
         }
     }
 
-    pub fn scroll_down(&mut self, textbuffer_context: &TextbufferContext) {
-        //if self.vertical_scroll < self.last {
-            self.vertical_scroll += textbuffer_context.scroll_size;
-        //}
+    pub fn scroll_down(&mut self, textbuffer_context: &TextbufferContext, filebuffer: &Filebuffer) {
+        self.vertical_scroll += textbuffer_context.scroll_size;
+        self.check_bottom_scroll(textbuffer_context, filebuffer);
+    }
+
+    fn check_bottom_scroll(&mut self, textbuffer_context: &TextbufferContext, filebuffer: &Filebuffer) {
+        let last_line = self.line_number_from_index(filebuffer, filebuffer.last_buffer_index());
+        let scroll_gap = textbuffer_context.selection_gap + 1;
+
+        if last_line + scroll_gap < self.line_count {
+            self.vertical_scroll = 0;
+        } else if self.line_count > scroll_gap + (last_line - self.vertical_scroll) { // FIX breaks when scroll_gap > line_count (i think)
+            self.vertical_scroll = scroll_gap + last_line - self.line_count;
+        }
     }
 
     fn adjust_start_index(&self, textbuffer_context: &TextbufferContext, filebuffer: &Filebuffer, disabled: bool, buffer_index: usize, range: usize) -> usize {
@@ -154,6 +166,8 @@ impl Textbuffer {
         } else if line_number + textbuffer_context.selection_gap + 1 > self.vertical_scroll + self.line_count {
             self.vertical_scroll += line_number + textbuffer_context.selection_gap + 1 - self.vertical_scroll - self.line_count;
         }
+
+        self.check_bottom_scroll(textbuffer_context, filebuffer);
     }
 
     fn add_selection_(&mut self, filebuffer: &mut Filebuffer, selection: Selection) {
@@ -1080,10 +1094,6 @@ impl Textbuffer {
         }
     }
 
-    //fn line_count(&self, filebuffer: &Filebuffer) -> usize {
-    //    return self.line_number_from_index(filebuffer.last_buffer_index());
-    //}
-
     fn index_from_line(&self, filebuffer: &Filebuffer, line: usize) -> usize {
         let mut line_count = 0;
 
@@ -1682,11 +1692,9 @@ impl Textbuffer {
             false => 0.0,
         };
 
-        let mut word_index = 0;
-        let mut info_index = 0;
-        //let index = line_info[0].index;
         let mut top_offset = theme.offset.y * interface_context.font_size as f32;
         let mut left_offset = line_number_offset + theme.offset.x * interface_context.font_size as f32;
+        let mut word_index = 0;
 
         let line_number_height = line_scaling - theme.line_number_gap * 2.0 * line_scaling;
         let line_number_size = Vector2f::new(theme.line_number_width * character_scaling, line_number_height);
@@ -1731,39 +1739,24 @@ impl Textbuffer {
         }
     }
 
-    fn render_selection_lines(&self, framebuffer: &mut RenderTexture, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &TextbufferTheme, filebuffer: &Filebuffer) {
+    fn render_selection_lines(&self, framebuffer: &mut RenderTexture, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &TextbufferTheme, filebuffer: &Filebuffer, line_info: &Vec<LineInfo>) {
 
         let character_scaling = interface_context.character_spacing * interface_context.font_size as f32;
         let line_scaling = interface_context.line_spacing * interface_context.font_size as f32;
-        let scroll_offset = self.vertical_scroll as f32 * line_scaling + theme.offset.y * interface_context.font_size as f32;
         let line_number_offset = match textbuffer_context.line_numbers {
             true => theme.line_number_width as f32 * character_scaling + theme.line_number_offset * interface_context.font_size as f32,
             false => 0.0,
         };
         let left_offset = line_number_offset + theme.offset.x * interface_context.font_size as f32;
+        let mut top_offset = theme.offset.y * interface_context.font_size as f32;
         let line_size = Vector2f::new(self.size.x, line_scaling);
 
-        for index in 0..self.selections.len() {
-            let start_index = self.selection_smallest_index(index);
-            let mut top_offset = self.line_number_from_index(filebuffer, start_index) as f32 * line_scaling + theme.offset.y * interface_context.font_size as f32;
-            let mut render_line = true;
-
-            for offset in 0..self.selection_length(index) {
-                if top_offset >= scroll_offset {
-                    if render_line {
-                        let position = self.position + Vector2f::new(left_offset, top_offset - scroll_offset + theme.offset.y * interface_context.font_size as f32);
-                        Field::render(framebuffer, interface_context, &theme.selection_line_theme, line_size, position, line_scaling);
-                        render_line = false;
-                    }
-                } else if top_offset - scroll_offset > self.size.y {
-                    break;
-                }
-
-                if start_index + offset < filebuffer.length() && filebuffer.character(start_index + offset).is_newline() {
-                    top_offset += line_scaling;
-                    render_line = true;
-                }
+        for line in line_info {
+            if line.highlighted {
+                let position = self.position + Vector2f::new(left_offset, top_offset);
+                Field::render(framebuffer, interface_context, &theme.selection_line_theme, line_size, position, line_scaling);
             }
+            top_offset += line_scaling;
         }
     }
 
@@ -1865,7 +1858,7 @@ impl Textbuffer {
         let line_info = self.line_info(textbuffer_context, filebuffer);
 
         if textbuffer_context.selection_lines && (focused || textbuffer_context.unfocused_selections) {
-            self.render_selection_lines(framebuffer, interface_context, textbuffer_context, theme, filebuffer);
+            self.render_selection_lines(framebuffer, interface_context, textbuffer_context, theme, filebuffer, &line_info);
         }
 
         self.render_text(framebuffer, interface_context, textbuffer_context, theme, filebuffer, &line_info);
@@ -1936,25 +1929,5 @@ impl Textbuffer {
         }
 
         return line_info;
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-struct LineInfo {
-    pub number: usize,
-    pub index: usize,
-    pub length: usize,
-    pub highlighted: bool
-}
-
-impl LineInfo {
-
-    pub fn new(number: usize, index: usize, length: usize) -> Self {
-        return Self {
-            number: number,
-            index: index,
-            length: length,
-            highlighted: false,
-        }
     }
 }

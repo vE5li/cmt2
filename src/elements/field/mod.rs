@@ -1,14 +1,12 @@
 mod shape;
-mod theme;
 
 use sfml::system::Vector2f;
 use sfml::graphics::{ RenderTexture, CustomShape, Transformable, RenderTarget, Shape };
 
 use self::shape::RoundedRectangle;
 
+use themes::FieldTheme;
 use interface::{ InterfaceContext, Vector4f };
-
-pub use self::theme::FieldTheme;
 
 pub struct Field { }
 

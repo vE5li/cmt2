@@ -1,17 +1,15 @@
-mod theme;
-
 use seamonkey::*;
 
-use dialogues::DialogueTheme;
-use elements::{ Textbuffer, TextbufferContext, Selection };
-use interface::InterfaceContext;
 use input::Action;
-use system::{ Filebuffer, LanguageManager };
+use themes::{ DialogueTheme, TextboxTheme };
+use elements::{ Textbuffer, TextbufferContext };
+use selection::Selection;
+use interface::InterfaceContext;
+use filebuffer::Filebuffer;
+use managers::LanguageManager;
 
 use sfml::system::Vector2f;
 use sfml::graphics::*;
-
-pub use self::theme::TextboxTheme;
 
 macro_rules! handle_return_none {
     ($expression: expr) => ({
@@ -45,7 +43,7 @@ impl TextBox {
         }
     }
 
-    pub fn get(&self) -> SharedString {
+    pub fn get_text(&self) -> SharedString {
         let mut padded_text = self.filebuffer.get_text();
         padded_text.pop();
         return padded_text;

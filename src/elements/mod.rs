@@ -1,4 +1,3 @@
-mod alignment;
 mod text;
 mod field;
 mod textfield;
@@ -8,7 +7,6 @@ mod combobox;
 mod filebox;
 mod popup;
 
-pub use self::alignment::*;
 pub use self::text::*;
 pub use self::field::*;
 pub use self::textfield::*;

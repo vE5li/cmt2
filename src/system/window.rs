@@ -1,11 +1,16 @@
+use seamonkey::*;
+
+#[cfg(feature = "debug")]
+use debug::*;
+
 use sfml::{ graphics::*, system::*, window::* };
 
-use seamonkey::*;
 use input::*;
-use interface::{ Interface, InterfaceTheme, InterfaceContext };
-use system::{ ResourceManager, LanguageManager };
-use elements::TextbufferContext;
 use input::Action;
+use themes::InterfaceTheme;
+use interface::{ Interface, InterfaceContext };
+use managers::{ FilebufferManager, LanguageManager };
+use elements::TextbufferContext;
 
 pub struct PoetWindow<'w> {
     size: Vector2f,
@@ -18,7 +23,10 @@ pub struct PoetWindow<'w> {
 
 impl<'w> PoetWindow<'w> {
 
-    pub fn interface(interface_context: &InterfaceContext, resource_manager: &mut ResourceManager, language_manager: &mut LanguageManager, window_id: usize) -> Status<Self> {
+    pub fn interface(interface_context: &InterfaceContext, filebuffer_manager: &mut FilebufferManager, language_manager: &mut LanguageManager, window_id: usize) -> Status<Self> {
+
+        #[cfg(feature = "debug")]
+        let timer = Timer::new("create interface");
 
         let size = Vector2f::new(400.0, 400.0);
 
@@ -33,7 +41,10 @@ impl<'w> PoetWindow<'w> {
         let texture_pointer = framebuffer.texture() as *const _;
         surface.set_texture(unsafe { &*texture_pointer }, false);
 
-        let interface = confirm!(Interface::new(resource_manager, language_manager, window_id));
+        let interface = confirm!(Interface::new(filebuffer_manager, language_manager, window_id));
+
+        #[cfg(feature = "debug")]
+        timer.stop();
 
         return success!(Self {
             size: size,
@@ -45,12 +56,12 @@ impl<'w> PoetWindow<'w> {
         });
     }
 
-    pub fn handle_input(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &InterfaceTheme, resource_manager: &mut ResourceManager, language_manager: &mut LanguageManager, theme_name: &mut SharedString) -> Vec<Action> {
+    pub fn handle_input(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &InterfaceTheme, filebuffer_manager: &mut FilebufferManager, language_manager: &mut LanguageManager, theme_name: &mut SharedString) -> Vec<Action> {
         let mut action_queue = Vec::new();
         let mut force_rerender = false;
         let mut handled = false;
 
-        if self.interface.history_catch_up(textbuffer_context, resource_manager) {
+        if self.interface.history_catch_up(textbuffer_context, filebuffer_manager) {
             force_rerender = true;
         }
 
@@ -61,22 +72,45 @@ impl<'w> PoetWindow<'w> {
 
                 Event::KeyPressed { code, shift, ctrl, alt, system } => {
                     if !is_modifier_key(code) {
+
+                        #[cfg(feature = "debug")]
+                        let timer = Timer::new("key press");
+
                         let modifiers = Modifiers::from(shift, ctrl, alt, system);
                         let key_event = KeyEvent::new(code, modifiers);
 
                         for action in interface_context.get_matching_actions(&key_event) {
-                            if let Some(unhandled_action) = self.interface.handle_action(interface_context, textbuffer_context, resource_manager, language_manager, action, theme_name) {
+                            if let Some(unhandled_action) = self.interface.handle_action(interface_context, textbuffer_context, filebuffer_manager, language_manager, action, theme_name) {
                                 if unhandled_action.is_global() {
                                     action_queue.push(unhandled_action);
                                     handled = true;
+
+                                    #[cfg(feature = "debug")]
+                                    print_debug!("dispatch global action {}{:?}{}", yellow(), unhandled_action, none());
+                                    #[cfg(feature = "debug")]
+                                    timer.stop();
+
                                     continue 'handle;
                                 }
+
+                                #[cfg(feature = "debug")]
+                                print_debug!("unhandled action {}{:?}{}", yellow(), action, none());
+
                             } else {
-                                self.rerender(interface_context, textbuffer_context, theme, resource_manager);
+                                self.rerender(interface_context, textbuffer_context, theme, filebuffer_manager);
                                 handled = true;
+
+                                #[cfg(feature = "debug")]
+                                print_debug!("action {}{:?}{} handled by interface", yellow(), action, none());
+                                #[cfg(feature = "debug")]
+                                timer.stop();
+
                                 continue 'handle;
                             }
                         }
+
+                        #[cfg(feature = "debug")]
+                        timer.stop();
                     }
                 },
 
@@ -88,38 +122,72 @@ impl<'w> PoetWindow<'w> {
 
                     let character = match unicode as usize {
                         13 => Character::from_char('\n'),
-                        0...31 => continue 'handle,
-                        32...126 => Character::from_char(unicode),
+                        0..=31 => continue 'handle,
+                        32..=126 => Character::from_char(unicode),
                         _other => continue 'handle,
                     };
 
-                    self.interface.add_character(textbuffer_context, resource_manager, language_manager, character);
+                    #[cfg(feature = "debug")]
+                    let timer = Timer::new("add character");
+
+                    self.interface.add_character(textbuffer_context, filebuffer_manager, language_manager, character);
                     force_rerender = true;
+
+                    #[cfg(feature = "debug")]
+                    timer.stop();
                 },
 
                 Event::Resized { width, height } => {
+
+                    #[cfg(feature = "debug")]
+                    let timer = Timer::new("window resize");
+
                     self.size = Vector2f::new(width as f32, height as f32);
                     self.reallocate(interface_context);
-                    self.update_layout(interface_context, textbuffer_context, resource_manager, theme);
+                    self.update_layout(interface_context, textbuffer_context, filebuffer_manager, theme);
                     force_rerender = true;
+
+                    #[cfg(feature = "debug")]
+                    timer.stop();
                 },
 
                 Event::GainedFocus => {
+
+                    #[cfg(feature = "debug")]
+                    let timer = Timer::new("gained focus");
+
                     self.focused = true;
                     force_rerender = true;
+
+                    #[cfg(feature = "debug")]
+                    timer.stop();
                 },
 
                 Event::LostFocus => {
+
+                    #[cfg(feature = "debug")]
+                    let timer = Timer::new("lost focus");
+
                     self.focused = false;
                     force_rerender = true;
+
+                    #[cfg(feature = "debug")]
+                    timer.stop();
                 },
 
                 Event::MouseWheelScrolled { delta, .. } => {
+
+                    #[cfg(feature = "debug")]
+                    let timer = Timer::new("mouse wheel scroll");
+
                     match delta > 0.0 {
                         true => self.interface.scroll_up(textbuffer_context),
-                        false => self.interface.scroll_down(textbuffer_context),
+                        false => self.interface.scroll_down(filebuffer_manager, textbuffer_context),
                     }
                     force_rerender = true;
+
+                    #[cfg(feature = "debug")]
+                    timer.stop();
                 },
 
                 _ignored => {},
@@ -127,13 +195,17 @@ impl<'w> PoetWindow<'w> {
         }
 
         if force_rerender {
-            self.rerender(interface_context, textbuffer_context, theme, resource_manager);
+            self.rerender(interface_context, textbuffer_context, theme, filebuffer_manager);
         }
 
         return action_queue;
     }
 
     pub fn reallocate(&mut self, interface_context: &InterfaceContext) {
+
+        #[cfg(feature = "debug")]
+        let timer = Timer::new("reallocate resources");
+
         let view = View::from_rect(&FloatRect::new(0.0, 0.0, self.size.x as f32, self.size.y as f32));
         self.window.set_view(&view);
 
@@ -144,16 +216,33 @@ impl<'w> PoetWindow<'w> {
 
         let texture_pointer = self.framebuffer.texture() as *const _;
         self.surface.set_texture(unsafe { &*texture_pointer }, false);
+
+        #[cfg(feature = "debug")]
+        timer.stop();
     }
 
-    pub fn update_layout(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, resource_manager: &ResourceManager, theme: &InterfaceTheme) {
-        self.interface.update_layout(interface_context, textbuffer_context, resource_manager, theme, self.size);
+    pub fn update_layout(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, filebuffer_manager: &FilebufferManager, theme: &InterfaceTheme) {
+
+        #[cfg(feature = "debug")]
+        let timer = Timer::new("update layout");
+
+        self.interface.update_layout(interface_context, textbuffer_context, filebuffer_manager, theme, self.size);
+
+        #[cfg(feature = "debug")]
+        timer.stop();
     }
 
-    pub fn rerender(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &InterfaceTheme, resource_manager: &ResourceManager) {
+    pub fn rerender(&mut self, interface_context: &InterfaceContext, textbuffer_context: &TextbufferContext, theme: &InterfaceTheme, filebuffer_manager: &FilebufferManager) {
+
+        #[cfg(feature = "debug")]
+        let timer = Timer::new("rerender");
+
         self.framebuffer.clear(Color::BLACK);
-        self.interface.render(&mut self.framebuffer, interface_context, textbuffer_context, theme, resource_manager, self.focused);
+        self.interface.render(&mut self.framebuffer, interface_context, textbuffer_context, theme, filebuffer_manager, self.focused);
         self.framebuffer.display();
+
+        #[cfg(feature = "debug")]
+        timer.stop();
     }
 
     pub fn display(&mut self) {
@@ -167,6 +256,13 @@ impl<'w> PoetWindow<'w> {
     }
 
     pub fn close(&mut self) {
+
+        #[cfg(feature = "debug")]
+        let timer = Timer::new("close window");
+
         self.window.close();
+
+        #[cfg(feature = "debug")]
+        timer.stop();
     }
 }

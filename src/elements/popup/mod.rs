@@ -1,14 +1,11 @@
-mod theme;
-
 use seamonkey::*;
 
 use sfml::system::Vector2f;
 use sfml::graphics::RenderTexture;
 
-use elements::{ Textfield, TextfieldTheme };
+use elements::Textfield;
+use themes::{ TextfieldTheme, PopupTheme };
 use interface::InterfaceContext;
-
-pub use self::theme::{ PopupTheme, MessageTheme };
 
 pub struct Popup {
     pub size: Vector2f,

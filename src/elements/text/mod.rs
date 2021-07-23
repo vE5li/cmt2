@@ -1,13 +1,10 @@
-mod theme;
-
 use seamonkey::*;
 
 use sfml::graphics::{ RenderTexture, Transformable, RenderTarget };
 use sfml::system::Vector2f;
 
+use themes::TextTheme;
 use interface::InterfaceContext;
-
-pub use self::theme::TextTheme;
 
 pub struct Text { }
 

@@ -3,9 +3,21 @@ name = "poet"
 version = "0.0.1"
 authors = ["ve5li <ve5li@tuta.io>"]
 
-[dependencies]
-sfml = { git = "https://github.com/JeremyLetang/rust-sfml" }
+[features]
+debug = ["lazy_static", "chrono"]
+
+[dependencies.sfml]
+git = "https://github.com/JeremyLetang/rust-sfml"
 
 [dependencies.seamonkey]
-git = "https://github.com/vE5li/seamonkey.git"
+#git = "https://github.com/vE5li/seamonkey.git"
+path = "/usr/share/seamonkey"
 features = ["tokenize", "parse"]
+
+[dependencies.chrono]
+version = "0.4"
+optional = true
+
+[dependencies.lazy_static]
+version = "1.4.0"
+optional = true

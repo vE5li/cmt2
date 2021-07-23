@@ -1,14 +1,14 @@
 use seamonkey::SharedString;
-use elements::Selection;
+use selection::Selection;
 
 #[derive(Clone)]
 pub enum DialogueMode {
     None,
-    OpenFile,
-    LoadedBuffers,
+    Open,
+    Filebuffers,
     Notes,
-    SetLanguage,
-    SetTheme,
-    FindReplace(Vec<Selection>),
+    Language,
+    Theme,
+    Replace(Vec<Selection>),
     Action,
 }
